@@ -173,11 +173,11 @@ block guarded as `:root:not([data-theme="dark"])` alongside the existing
 | phase | state |
 | --- | --- |
 | 1 · content + AST + static renderer | built · content complete, no placeholders |
-| 2 · the shell | built · 45 checks in `npm test` |
+| 2 · the shell | built · 83 checks in `npm test` |
 | 3 · `dag` | blocked on real dates and throughput numbers |
 | 4 · polish, font subsetting, contact function | started · `ls -a` egg in |
 
-Weights, gzipped: ~2.1 KB per page, 2.1 KB CSS, 7.7 KB for the shell, and
+Weights, gzipped: ~2.1 KB per page, 2.1 KB CSS, 8.8 KB for the shell, and
 4.8 KB for `/site.json` — the last two only for visitors whose browsers run
 JavaScript, and the payload only on idle. Phase 4 replaces the Google Fonts link
 with subset, self-hosted woff2.

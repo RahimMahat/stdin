@@ -73,7 +73,7 @@ virtualConsole.on('jsdomError', (e) => thrown.push(e))
 
 const dom = new JSDOM(html, {
   runScripts: 'outside-only',
-  url: 'https://rahimmahat.dev/whoami',
+  url: 'https://stdin.pages.dev/whoami',
   // Without this jsdom omits requestAnimationFrame, which the reveal needs.
   pretendToBeVisual: true,
   virtualConsole,
@@ -419,7 +419,7 @@ check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leak
  */
 async function scrambleRun({ hover = true, reduced = false, clientX = 75 }) {
   const d2 = new JSDOM(await readFile('dist/index.html', 'utf8'), {
-    url: 'https://rahimmahat.dev/',
+    url: 'https://stdin.pages.dev/',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   })

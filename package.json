@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "rahimmahat.com \u2014 a personal site you query instead of browse",
+  "description": "A personal site you query instead of browse",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && node scripts/check-links.mjs",
