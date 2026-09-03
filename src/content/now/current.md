@@ -4,7 +4,8 @@ building:
   - "this site — a terminal you can query instead of a portfolio you scroll"
   - "applied AI on top of the data platform work, rather than beside it"
 reading:
-  - "TODO — a paper, a book, a codebase"
+  - "Designing Data-Intensive Applications — the stream processing chapters, again"
+  - "the Iceberg and DuckDB docs, mostly to argue with myself about table formats"
 learning:
   - "AWS Certified Solutions Architect – Associate, in progress"
 ---

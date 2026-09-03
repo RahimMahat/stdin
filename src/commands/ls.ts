@@ -26,7 +26,7 @@ export const ls: Command = {
       line(
         failed
           ? `cat one for the write-up. ${failed} of these did not work; that one is worth reading first.`
-          : 'cat one for the write-up: problem, architecture, what broke, what it moves per day.',
+          : 'cat one for the write-up: the problem, the architecture, what broke, and what changed.',
         'dim',
       ),
     ]

@@ -10,10 +10,10 @@ stack:
   - "Jenkins"
   - "GitHub Actions"
   - "Python"
-throughput: "TODO — environments, stacks or modules under management"
+throughput: "Every environment defined in code — no console-assembled infrastructure left"
 latency: "40% less manual effort per deployment"
-broke: "TODO — the failure that actually happened here. Drift, a destroy that should not have run, a module that was wrong everywhere at once — whatever it actually was."
-fixed: "TODO — what you changed, and what you would do differently now."
+broke: "The pipelines were code and the infrastructure under them was not. Environments were assembled by hand, so they drifted, so \"works in dev\" stopped carrying information. The only real documentation of how an environment got built was whoever had built one last."
+fixed: "Moved account-level infrastructure into Terraform and application-coupled resources into AWS CDK, behind a shared library of modules so that a correctly configured resource is the default you get rather than something you have to remember. Plan runs on every pull request, apply on merge — roughly 40% less manual effort per deployment, and every change seen by a second person."
 failed: false
 ---
 

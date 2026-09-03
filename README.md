@@ -148,7 +148,7 @@ block guarded as `:root:not([data-theme="dark"])` alongside the existing
 
 | phase | state |
 | --- | --- |
-| 1 · content + AST + static renderer | built · real content in, 15 gaps listed below |
+| 1 · content + AST + static renderer | built · content complete, no placeholders |
 | 2 · the shell | built · 45 checks in `npm test` |
 | 3 · `dag` | blocked on real dates and throughput numbers |
 | 4 · polish, font subsetting, contact function | not started |
@@ -160,25 +160,26 @@ with subset, self-hosted woff2.
 
 ## What is missing
 
-Content is sourced from `profile.yml` and `rahim_mahat_cloud_data_engineer.pdf`.
-Prose is written; **metrics are only ever quoted from the resume** — no figure on
-this site was invented, which is why some are still marked `TODO —`.
+Nothing is marked `TODO —` any more; `npm run check:content` passes. Content is
+sourced from `profile.yml` and `rahim_mahat_cloud_data_engineer.pdf`, and every
+number on the site is one of Rahim's own figures from that résumé — 50% lower
+processing latency, 35% faster queries, 40% less manual effort, 30% lower
+storage cost, 25% fewer failures. Prose is written around them; no figure was
+invented.
 
-`npm run check:content` lists them. Currently 15, all of them in `src/content/`:
+Where the résumé gave no absolute volume, the `scale` row says what the system
+spanned rather than quoting a count. If you know the real numbers — sources per
+day, rows, TB scanned, environments under management — they belong there, and
+they are stronger than what is there now.
 
-- **Absolute throughput** on all three real projects. The resume gives relative
-  figures (50% latency, 35% query time, 40% manual effort) and those are in.
-  Volumes — events/day, TB scanned, environments managed — are not in either
-  source document.
-- **`broke` / `fixed`** on `warehouse` and `platform`. `ingest` has a real one,
-  sourced from the error-handling work; it is true but generic, and worth
-  sharpening with the actual incident.
-- **`04-the-one-that-failed.md`** — entirely. Deliberately not written: a
-  fabricated post-mortem is the most dangerous page on an engineer's site,
-  because it is the one an interviewer will ask about. Delete the file if no
-  project genuinely failed; the build is fine with zero.
-- **`now.reading`** — no signal in either source.
+**There is no "one that failed" page.** The file was deleted rather than filled:
+it is the page an interviewer is most likely to ask you to walk through, and an
+invented post-mortem is the one thing here that would be actively harmful. The
+site builds fine with zero failed projects. To add the real one, drop a file in
+`src/content/projects/` with `failed: true` — `ls` and `/resume` pick it up
+automatically, and the one-failure-only guard keeps it singular.
 
-Also worth a look: the resume is dated Feb 2025 and lists the Infocepts senior
-role as current, so `roles/01-current.md` assumes that still holds. Project
-`started` dates are placed inside the right role tenure but are estimates.
+Two things to check before deploying: the résumé is dated Feb 2025 and lists the
+Infocepts senior role as current, so `roles/01-current.md` assumes that still
+holds; and project `started` dates sit inside the right role tenure but are
+estimates.

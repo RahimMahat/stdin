@@ -12,7 +12,7 @@ stack:
   - "API Gateway"
   - "Amazon S3"
   - "Jenkins"
-throughput: "TODO — sources, files or events per day"
+throughput: "Several upstream systems on one contract — batch through Glue, events through API Gateway, Lambda and SQS"
 latency: "50% lower end-to-end processing time than the pipeline it replaced"
 broke: "The real-time path failed in ways the batch path never did. A downstream service being slow or briefly unavailable did not just delay a message — it left records half-applied, so the failure showed up later as inconsistent data rather than as an error anyone was paged for."
 fixed: "Built a real explicit error-handling layer across the streaming path: retries with backoff, dead-letter queues on the SQS consumers, and failures surfaced as failures instead of as silence. System failures and data inconsistencies dropped by around 25%."

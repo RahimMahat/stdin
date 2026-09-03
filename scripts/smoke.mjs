@@ -183,7 +183,11 @@ check('block echoes the prompt', block?.querySelector('.typed')?.textContent ===
 check('output is a live region', block?.querySelector('.out')?.getAttribute('aria-live') === 'polite')
 
 const rows = block?.querySelectorAll('.tbl tbody tr') ?? []
-check('ls printed every project', rows.length === 4, `got ${rows.length} rows`)
+check(
+  'ls printed every project',
+  rows.length === data0.projects.length,
+  `${rows.length} rows for ${data0.projects.length} projects`,
+)
 check('url tracks the command', window.location.pathname === '/ls', window.location.pathname)
 check('block is addressable for back/forward', block?.dataset.href === '/ls')
 

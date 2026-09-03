@@ -20,7 +20,8 @@ const projects = defineCollection({
     order: z.number().int(),
     started: z.coerce.date(),
     stack: z.array(z.string()).min(1),
-    // The numbers that make the DAG honest in phase 3. Required on purpose.
+    // Scale and impact. Required on purpose: a project page that cannot say
+    // what the thing handled or what it changed is a screenshot, not a case.
     throughput: z.string(),
     latency: z.string(),
     // "What broke" and "what I changed" are separate fields so they cannot be

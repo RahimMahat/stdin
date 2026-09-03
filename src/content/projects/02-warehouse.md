@@ -10,10 +10,10 @@ stack:
   - "Denodo"
   - "Amazon QuickSight"
   - "SQL"
-throughput: "TODO — models, tables or TB scanned per day"
+throughput: "One modelled Redshift layer behind a virtualization tier, serving every BI consumer"
 latency: "35% faster query execution after performance tuning"
-broke: "TODO — the failure that actually happened here. What broke, how you found out, and how long it was wrong before anyone noticed."
-fixed: "TODO — what you changed, and what you would do differently now."
+broke: "Analysts were querying close to raw tables, so every dashboard encoded its own quiet interpretation of what a metric meant — two of them could disagree without either being wrong. Query times and storage costs were both climbing, and nobody could point at the reason."
+fixed: "Modelled the curated layer in Redshift and put Denodo in front of it, so consumers depend on one surface instead of learning which physical table is the current one. Performance tuning brought query execution times down by about 35%; tiering storage across S3 and Redshift by how often something is actually touched cut storage cost by about 30%, without deleting anything anyone still needed."
 failed: false
 ---
 

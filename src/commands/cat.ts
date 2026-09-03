@@ -12,7 +12,7 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
     kv([
       ['started', ymd(p.started)],
       ['stack', p.stack.join(', ')],
-      ['throughput', p.throughput],
+      ['scale', p.throughput],
       ['latency', p.latency],
       ['result', p.failed ? 'failed — post-mortem below' : 'in production'],
       ...(p.repo ? ([['repo', p.repo]] as [string, string][]) : []),
