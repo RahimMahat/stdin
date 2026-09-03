@@ -210,6 +210,11 @@ await settle()
 const last = () => doc.querySelector('#stream .block:last-child')
 check('unknown command fails politely', !!last()?.querySelector('.o-fail'))
 check(
+  'no roadmap language reaches a visitor',
+  !doc.body.textContent.toLowerCase().includes('phase '),
+  'internal phase numbering must not appear in page copy',
+)
+check(
   'unknown command leaves the url alone',
   window.location.pathname === urlBeforeError,
   `${urlBeforeError} -> ${window.location.pathname}`,
@@ -308,6 +313,44 @@ type(input, 'clear')
 submit(form)
 await settle()
 check('clear empties the session', doc.querySelectorAll('#stream .block').length === 0)
+
+/* ---------------------------------------------------------------- */
+/* unknown input suggests rather than scolds                         */
+/* ---------------------------------------------------------------- */
+
+const chipsOf = (nodes) => nodes.filter((n) => n.t === 'cmds').flatMap((n) => n.items.map((i) => i.name))
+
+const typo = T.run('whoam', data0)
+check('a near miss suggests the real command', chipsOf(typo).includes('whoami'), chipsOf(typo).join(' | '))
+
+const nearProject = T.run('projct', data0)
+check(
+  'a near miss reaches project pages too',
+  chipsOf(nearProject).some((c) => c.startsWith('cat projects/')),
+  chipsOf(nearProject).join(' | '),
+)
+
+const nonsense = T.run('xyzzy', data0)
+check('gibberish suggests nothing rather than anything', chipsOf(nonsense).length === 0, chipsOf(nonsense).join(' | '))
+check('gibberish still points at help', nonsense.some((n) => n.t === 'line' && n.text.includes('help')))
+
+/**
+ * Every chip anywhere on the site must be executable. `theme [dark|light]` reads
+ * well and errors when run, which is exactly the kind of thing that only shows
+ * up when someone clicks it.
+ */
+const offered = new Set()
+for (const cmd of T.registry) for (const c of chipsOf(T.runForPage(cmd, data0))) offered.add(c)
+for (const probe of ['whoam', 'projct', 'thme', 'cat']) for (const c of chipsOf(T.run(probe, data0))) offered.add(c)
+
+const unrunnable = [...offered].filter((c) => /[<>[\]]/.test(c))
+check('nothing is ever offered that cannot be run', unrunnable.length === 0, unrunnable.join(' | '))
+
+const rejected = [...offered].filter((c) => {
+  const out = T.run(c, data0)
+  return out.some((n) => n.t === 'line' && n.tone === 'fail')
+})
+check('no offered command comes back as an error', rejected.length === 0, rejected.join(' | '))
 
 /* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */

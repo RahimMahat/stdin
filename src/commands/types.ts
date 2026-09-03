@@ -71,7 +71,7 @@ export interface Ctx {
 export interface Command {
   name: string
   aliases?: string[]
-  /** One line. Powers `help` and, in phase 2, the autocomplete list. */
+  /** One line. Powers `help`, tab completion, and the did-you-mean list. */
   summary: string
   /** Shown by `help`. Omit when the command takes no arguments. */
   usage?: string

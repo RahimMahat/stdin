@@ -1,5 +1,7 @@
 import type { Out } from '../render/ast'
-import { line } from '../render/ast'
+import { blank, cmds, line } from '../render/ast'
+import { search, type Candidate } from './fuzzy'
+import { runnable } from './naming'
 import { cat } from './cat'
 import { clear } from './clear'
 import { contact } from './contact'
@@ -11,6 +13,9 @@ import { skills } from './skills'
 import { theme } from './theme'
 import type { Command, Ctx, SiteData } from './types'
 import { whoami } from './whoami'
+
+// Re-exported so the rest of the app has one import site for the command layer.
+export { canonical, runnable } from './naming'
 
 /**
  * The registry is the site map. Adding a section means adding a command here —
@@ -30,6 +35,33 @@ export function find(name: string): Command | undefined {
 
 /** Commands that own a static page at /<name>. */
 export const pageCommands = (): Command[] => registry.filter((c) => c.page)
+
+/**
+ * Everything the site will accept, as text.
+ *
+ * Lives here rather than in the terminal because it is a fact about the command
+ * layer, not about the UI — tab completion and the unknown-command fallback are
+ * two readings of the same list, and they must not be able to disagree.
+ */
+export function candidates(data: SiteData | null): Candidate[] {
+  const out: Candidate[] = []
+
+  for (const c of registry) {
+    if (c.name === 'cat') continue // expanded per project below
+    out.push({ value: runnable(c), label: c.summary })
+  }
+
+  for (const p of data?.projects ?? []) {
+    out.push({ value: `cat projects/${p.slug}`, label: p.summary })
+  }
+
+  out.push(
+    { value: 'theme dark', label: 'deep slate — the default' },
+    { value: 'theme light', label: 'warm paper' },
+  )
+
+  return out
+}
 
 export interface Parsed {
   name: string
@@ -66,9 +98,18 @@ export function run(input: string, data: SiteData): Out[] {
   if (!name) return []
   const cmd = find(name)
   if (!cmd) {
+    // Unknown input searches rather than scolding. A shell that only says "not
+    // found" makes the visitor guess again; one that offers the three nearest
+    // things turns a typo into navigation.
+    const near = search(candidates(data), input, 3).filter((h) => h.score > -60)
+
     return [
       line(`${name}: command not found`, 'fail'),
-      line('try `help` — or in phase 2 this falls back to a search across the site.', 'dim'),
+      ...(near.length
+        ? [blank(), line('did you mean:', 'dim'), cmds(near.map((h) => ({ name: h.value, label: h.label })))]
+        : []),
+      blank(),
+      line('`help` lists every command.', 'dim'),
     ]
   }
   const ctx: Ctx = { args, flags, data }
@@ -84,9 +125,6 @@ export function runForPage(cmd: Command, data: SiteData): Out[] {
   }
   return cmd.run(ctx)
 }
-
-/** The canonical input line for a command — what `help` and the prompt display. */
-export const canonical = (cmd: Command): string => cmd.usage ?? cmd.name
 
 /**
  * The URL that renders this exact input, or null when no page does.

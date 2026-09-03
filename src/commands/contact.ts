@@ -18,7 +18,7 @@ export const contact: Command = {
         ],
       ),
       blank(),
-      line('plain lines, copyable. a message form lands here in phase 4.', 'dim'),
+      line('plain lines, copyable. no form, no tracking pixel, no newsletter.', 'dim'),
     ]
   },
 }

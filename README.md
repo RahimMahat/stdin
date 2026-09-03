@@ -61,9 +61,16 @@ alive.
 
 Completion is a combobox/listbox: `aria-expanded`, `aria-activedescendant`, and
 `role="option"` are wired, and output lands in a `role="log"` with
-`aria-live="polite"`. The matcher is thirty lines in `complete.ts` rather than a
-fuzzy-search dependency — there are thirteen candidates, and uFuzzy would have
-outweighed the rest of the bundle.
+`aria-live="polite"`. The matcher is forty lines in `commands/fuzzy.ts` rather
+than a fuzzy-search dependency — there are around a dozen candidates, and uFuzzy
+would have outweighed the rest of the bundle.
+
+Tab completion and the unknown-command fallback read the same candidate list
+from the same matcher, both in the command layer, so the prompt cannot offer
+something the shell then refuses. Anything offered as a chip goes through
+`runnable()`, which strips placeholder tokens — `theme [dark|light]` displays
+well and errors when executed. `npm test` asserts that every chip the site can
+produce actually runs without failing.
 
 A command only changes the URL when a page actually renders it (`pageFor` in
 `src/commands/index.ts`). Errors and unknown input leave the address bar alone,

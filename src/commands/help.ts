@@ -1,4 +1,5 @@
 import { blank, line, table, type Cell, type Out } from '../render/ast'
+import { canonical, runnable } from './naming'
 import type { Command, Ctx } from './types'
 
 /**
@@ -15,11 +16,12 @@ export function makeHelp(all: () => Command[]): Command {
     run(_ctx: Ctx): Out[] {
       const commands = all()
       const rows: Cell[][] = commands.map((c) => [
-        { text: c.usage ?? c.name, cmd: c.usage ?? c.name },
+        // Shows the usage line, runs the part without placeholders in it.
+        { text: canonical(c), cmd: runnable(c) },
         { text: c.summary, tone: 'dim' },
       ])
       return [
-        line(`${commands.length} commands. tab completes; unknown input falls back to search.`, 'dim'),
+        line(`${commands.length} commands. tab completes; anything unrecognised suggests the nearest match.`, 'dim'),
         blank(),
         table(['command', 'output'], rows),
         blank(),
