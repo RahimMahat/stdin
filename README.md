@@ -1,13 +1,18 @@
 # stdin
 
-A personal site you query instead of browse. Concept and stack decision:
-<https://claude.ai/code/artifact/73ca0da6-be8f-4f24-b6f7-233b3d5fa112>
-Original brief: `personal_website_design.pdf`.
+A personal site you query instead of browse. Every command is a real,
+indexable, JavaScript-free URL; the terminal is layered on top of those pages
+rather than replacing them.
 
-**Phase 1 is built**, with real content in. Content, the output AST, and the
-build-time renderer.
-Every command is already a real, indexable, JavaScript-free URL. The live
-terminal is phase 2.
+**Content, the static renderer and the live shell are all built.** What is left
+is deployment, polish, and two sections blocked on real numbers — see
+[Status](#status).
+
+Astro 5, no UI framework, no runtime dependencies. Two supporting documents are
+deliberately outside the repo: the original brief (`personal_website_design.pdf`)
+and the [concept and stack
+decision](https://claude.ai/code/artifact/73ca0da6-be8f-4f24-b6f7-233b3d5fa112),
+which is a private link and will not open for anyone but the author.
 
 ```bash
 npm run dev            # localhost:4321
@@ -126,7 +131,7 @@ something written for one person rather than published.
 - **A project** — drop a file in `src/content/projects/`. It appears in
   `ls projects/`, gets a page at `/projects/<slug>`, and joins `/resume`.
 - **A section** — write a `Command` in `src/commands/`, add it to `base` in
-  `src/commands/index.ts`. Routing, `help`, and phase-2 autocomplete all read
+  `src/commands/index.ts`. Routing, `help`, and autocomplete all read
   from that one array.
 - **A link between commands** — use a `cmd:` cell, never a hand-written `href`.
   `hrefFor()` owns command→URL resolution so a chip cannot point at a route that
@@ -147,7 +152,7 @@ these failure modes is invisible during normal development.
   href must resolve to a generated file.
 - **Placeholders** (`scripts/check-content.mjs`) — fails while any `TODO —`
   marker survives. Not wired into `build` on purpose, so local builds work
-  before the copy is finished. Wire it into CI before the first deploy.
+  before the copy is finished — which is exactly why it belongs in CI.
 - **The shell** (`scripts/smoke.mjs`, via `npm test`) — bundles the terminal as
   the browser gets it, mounts it on a built page in jsdom, and drives it:
   keys, completion, history, theme, URLs, and renderer parity. `jsdom` is a
@@ -168,28 +173,62 @@ To follow the OS preference instead, add a `@media (prefers-color-scheme: light)
 block guarded as `:root:not([data-theme="dark"])` alongside the existing
 `[data-theme="light"]` rule.
 
+## Deploying
+
+Static output in `dist/`. Cloudflare Pages, built from `main`:
+
+| setting | value |
+| --- | --- |
+| build command | `npm run build` |
+| output directory | `dist` |
+| framework preset | Astro |
+
+`site` in `astro.config.mjs` is the canonical origin, and every
+`<link rel="canonical">` on every page is generated from it. **It must name a
+host that actually serves the site.** No domain is owned yet, so it points at
+the Pages subdomain; change it the day one is bought, and not before. A
+canonical pointing at an origin that does not resolve is worse than no canonical
+at all, because a crawler believes it.
+
+`npm run check:content` and `npm test` are not yet wired into CI. They should be
+before anything else lands — the guards below only earn their keep once a broken
+build can reach production.
+
 ## Status
 
 | phase | state |
 | --- | --- |
-| 1 · content + AST + static renderer | built · content complete, no placeholders |
+| 1 · content + AST + static renderer | built · no placeholders left |
 | 2 · the shell | built · 83 checks in `npm test` |
-| 3 · `dag` | blocked on real dates and throughput numbers |
+| 3 · `dag` | blocked on real throughput numbers |
 | 4 · polish, font subsetting, contact function | started · `ls -a` egg in |
+| 5 · deploy | repo pushed · Pages project not yet created |
 
-Weights, gzipped: ~2.1 KB per page, 2.1 KB CSS, 8.8 KB for the shell, and
-4.8 KB for `/site.json` — the last two only for visitors whose browsers run
-JavaScript, and the payload only on idle. Phase 4 replaces the Google Fonts link
-with subset, self-hosted woff2.
+Weights, gzipped: 2.2 KB for a typical page (`/resume` is the outlier at 7.1 KB,
+being the whole CV), 2.4 KB CSS, 8.8 KB for the shell, and 4.4 KB for
+`/site.json` — the last two only for visitors whose browsers run JavaScript, and
+the payload only on idle.
+
+Known defects, both real and both unfixed:
+
+- **Every page except `/` renders zero headings.** No `<h1>` on `/help`, `/ls`,
+  `/resume` or any project page. Screen readers navigate by heading and there is
+  nothing to navigate; it costs SEO too.
+- **On `/`, the crumbs repeat the command grid** immediately below it — the same
+  destinations twice in a row.
+
+Phase 4 also replaces the Google Fonts link with subset, self-hosted woff2, and
+adds the contact form as a Pages Function.
 
 ## What is missing
 
 Nothing is marked `TODO —` any more; `npm run check:content` passes. Content is
-sourced from `profile.yml` and `rahim_mahat_cloud_data_engineer.pdf`, and every
-number on the site is one of Rahim's own figures from that résumé — 50% lower
-processing latency, 35% faster queries, 40% less manual effort, 30% lower
-storage cost, 25% fewer failures. Prose is written around them; no figure was
-invented.
+sourced from `profile.yml` and `rahim_mahat_cloud_data_engineer.pdf`, **neither
+of which is in the repo** — both are gitignored, because the first carries a
+phone number, visa status and compensation targets. Every number on the site is
+one of Rahim's own figures from that résumé — 50% lower processing latency, 35%
+faster queries, 40% less manual effort, 30% lower storage cost, 25% fewer
+failures. Prose is written around them; no figure was invented.
 
 Where the résumé gave no absolute volume, the `scale` row says what the system
 spanned rather than quoting a count. If you know the real numbers — sources per
@@ -207,3 +246,6 @@ Two things to check before deploying: the résumé is dated Feb 2025 and lists t
 Infocepts senior role as current, so `roles/01-current.md` assumes that still
 holds; and project `started` dates sit inside the right role tenure but are
 estimates.
+
+`now.reading` is a plausible guess rather than a fact. Swap it for whatever is
+actually on the desk — it is the one field on the site that goes stale by itself.
