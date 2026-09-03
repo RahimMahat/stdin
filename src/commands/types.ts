@@ -6,6 +6,8 @@ export interface Profile {
   role: string
   years: string
   location: string
+  /** How he works, not where he sits — the masthead leads with this. */
+  availability: string
   timezone: string
   stack: string[]
   /** HTML. The one paragraph that runs in the serif. */

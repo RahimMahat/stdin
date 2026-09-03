@@ -12,7 +12,7 @@ export const whoami: Command = {
         ['name', p.name],
         ['role', p.role],
         ['experience', p.years],
-        ['location', p.location],
+        ['location', `${p.location} · ${p.availability}`],
         ['timezone', p.timezone],
         ['stack', p.stack.join(', ')],
       ]),
