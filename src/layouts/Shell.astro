@@ -13,6 +13,17 @@ interface Props {
 
 const { title, description, command, caret = false } = Astro.props
 const full = title === 'stdin' ? 'rahim mahat — stdin' : `${title} — rahim mahat`
+
+/**
+ * The canonical URL.
+ *
+ * `build.format: 'file'` writes /help.html, so Astro.url.pathname carries the
+ * extension at build time — but every href on the site points at /help, and the
+ * host 308-redirects the .html form to it. A canonical naming a URL that
+ * redirects is a canonical pointing at the wrong page, so the extension comes
+ * off here and index collapses to the root.
+ */
+const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') || '/', Astro.site)
 ---
 
 <html lang="en">
@@ -21,7 +32,7 @@ const full = title === 'stdin' ? 'rahim mahat — stdin' : `${title} — rahim m
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{full}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="canonical" href={canonical} />
     <meta property="og:title" content={full} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="profile" />

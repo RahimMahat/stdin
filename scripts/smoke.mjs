@@ -16,6 +16,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import * as esbuild from 'esbuild'
 import { JSDOM, VirtualConsole } from 'jsdom'
+import astroConfig from '../astro.config.mjs'
 
 const results = []
 const ok = (name) => results.push({ name, pass: true })
@@ -73,7 +74,7 @@ virtualConsole.on('jsdomError', (e) => thrown.push(e))
 
 const dom = new JSDOM(html, {
   runScripts: 'outside-only',
-  url: 'https://stdin.pages.dev/whoami',
+  url: 'https://stdin-er5.pages.dev/whoami',
   // Without this jsdom omits requestAnimationFrame, which the reveal needs.
   pretendToBeVisual: true,
   virtualConsole,
@@ -408,6 +409,42 @@ for (const f of builtPages) {
 check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leaked.join(', '))
 
 /* ---------------------------------------------------------------- */
+/* canonical urls                                                    */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Every page declares a canonical URL, and getting it wrong is invisible
+ * locally: the site looks perfect while telling crawlers its real home is
+ * somewhere else. Two ways it has already gone wrong once each — a host nobody
+ * owns, and the .html form that the CDN redirects away from.
+ */
+const SITE = new URL(astroConfig.site)
+const canonicals = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  const m = html.match(/<link rel="canonical" href="([^"]+)"/)
+  if (m) canonicals.push([String(f), m[1]])
+}
+
+check('every built page declares a canonical', canonicals.length === builtPages.length,
+  `${canonicals.length} of ${builtPages.length}`)
+
+check(
+  'every canonical points at the configured host',
+  canonicals.every(([, href]) => new URL(href).origin === SITE.origin),
+  canonicals.filter(([, h]) => new URL(h).origin !== SITE.origin).map(([f]) => f).join(', '),
+)
+
+const withExt = canonicals.filter(([, href]) => /\.html$/.test(href))
+check('no canonical names the .html form the host redirects away from',
+  withExt.length === 0, withExt.map(([f, h]) => `${f} -> ${h}`).join(', '))
+
+const rootCanonical = canonicals.find(([f]) => f === 'index.html')
+check('the root canonical is the bare origin, not /index',
+  Boolean(rootCanonical) && rootCanonical[1] === `${SITE.origin}/`,
+  rootCanonical ? rootCanonical[1] : 'missing')
+
+/* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */
 /* ---------------------------------------------------------------- */
 
@@ -419,7 +456,7 @@ check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leak
  */
 async function scrambleRun({ hover = true, reduced = false, clientX = 75 }) {
   const d2 = new JSDOM(await readFile('dist/index.html', 'utf8'), {
-    url: 'https://stdin.pages.dev/',
+    url: 'https://stdin-er5.pages.dev/',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   })
