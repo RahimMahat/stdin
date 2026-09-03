@@ -1,0 +1,134 @@
+---
+import '../styles/theme.css'
+
+interface Props {
+  /** Browser title. The command itself, in most cases. */
+  title: string
+  description: string
+  /** The input line shown after the prompt. Omit on the landing page. */
+  command?: string
+  /** Show the blinking cursor after the command (landing page only). */
+  caret?: boolean
+}
+
+const { title, description, command, caret = false } = Astro.props
+const full = title === 'stdin' ? 'rahim mahat — stdin' : `${title} — rahim mahat`
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <meta property="og:title" content={full} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="profile" />
+
+    <!--
+      Applied before first paint so the chosen theme never flashes. Dark is the
+      default, so an unset preference needs no attribute at all.
+      Phase 4 replaces the Google Fonts link with subset, self-hosted woff2.
+    -->
+    <script is:inline>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('stdin.theme')
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+        } catch (e) {
+          /* private mode: fall through to the dark default */
+        }
+      })()
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,300..500&display=swap"
+    />
+  </head>
+
+  <body>
+    <a class="skip" href="/resume">skip to the plain résumé</a>
+
+    <main class="session">
+      <nav class="crumbs" aria-label="sections">
+        <a href="/">~</a>
+        <a href="/whoami">whoami</a>
+        <a href="/ls">ls projects/</a>
+        <a href="/skills">skills</a>
+        <a href="/git">git log</a>
+        <a href="/now">now</a>
+        <a href="/contact">contact</a>
+      </nav>
+
+      <!-- Landing page only: the one block that introduces rather than prints. -->
+      <slot name="masthead" />
+
+      <!--
+        With a command it is the echo of what produced this page, and it stays.
+        Without one it is scene-setting for visitors with no live prompt, and
+        the shell hides it on mount — two prompts, one of them inert, reads as a
+        broken input rather than as decoration.
+      -->
+      <div class={command ? 'prompt-line' : 'prompt-line ghost'} aria-hidden={command ? undefined : 'true'}>
+        <span class="ps1">rahim@stdin ~ %</span>
+        {command && <span class="typed">{command}</span>}
+        {caret && <span class="caret"></span>}
+      </div>
+
+      <div class="out" data-href={Astro.url.pathname}>
+        <slot />
+      </div>
+
+      <!-- Output from commands run in this session is appended here. -->
+      <div id="stream" class="stream"></div>
+
+      <!--
+        Ships hidden and disabled. The shell reveals it once it has loaded and
+        has content to run against, so a visitor without JavaScript is never
+        shown a prompt that cannot accept anything.
+      -->
+      <form id="tty" class="tty" hidden autocomplete="off">
+        <label class="ps1" for="tty-in">rahim@stdin ~ %</label>
+        <input
+          id="tty-in"
+          class="tty-in"
+          type="text"
+          name="cmd"
+          disabled
+          placeholder="loading…"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="tty-ac"
+          aria-autocomplete="list"
+          aria-label="command"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <ul id="tty-ac" class="ac" role="listbox" aria-label="completions" hidden></ul>
+      </form>
+
+      <p id="tty-status" class="sr-only" role="status" aria-live="polite"></p>
+
+      <footer class="footer">
+        <span>static build · no trackers</span>
+        <a href="/help">help</a>
+        <a href="/theme">theme</a>
+        <a href="/resume">plain résumé</a>
+      </footer>
+    </main>
+
+    <!--
+      Phase 2. Everything above this line is a complete, readable page; this
+      turns it into a session. Bundled and deferred, so it cannot delay paint,
+      and every chip stays a working link if it never arrives.
+    -->
+    <script>
+      import '../terminal/index.ts'
+    </script>
+  </body>
+</html>

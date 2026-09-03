@@ -1,0 +1,28 @@
+---
+import Shell from '../layouts/Shell.astro'
+import { loadSite } from '../data/site'
+import { canonical, pageCommands, runForPage } from '../commands'
+import { renderStatic, renderText } from '../render/static'
+import type { Command } from '../commands/types'
+
+/**
+ * Every command with a fixed output becomes a real page. This is the route that
+ * makes the site indexable, shareable and usable with JavaScript off — the
+ * terminal in phase 2 is an enhancement layered over these documents.
+ */
+export async function getStaticPaths() {
+  const data = await loadSite()
+  return pageCommands().map((cmd) => ({
+    params: { command: cmd.name },
+    props: { cmd, out: runForPage(cmd, data) },
+  }))
+}
+
+const { cmd, out } = Astro.props as { cmd: Command; out: ReturnType<typeof runForPage> }
+const html = renderStatic(out)
+const description = renderText(out) || cmd.summary
+---
+
+<Shell title={cmd.name} description={description} command={canonical(cmd)}>
+  <Fragment set:html={html} />
+</Shell>

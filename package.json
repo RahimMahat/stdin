@@ -1,0 +1,24 @@
+{
+  "name": "stdin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "rahimmahat.com \u2014 a personal site you query instead of browse",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/check-links.mjs",
+    "preview": "astro preview",
+    "check": "astro check",
+    "check:content": "node scripts/check-content.mjs",
+    "test": "npm run build && node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "astro": "^5.14.1",
+    "marked": "^15.0.7"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.7.3"
+  }
+}

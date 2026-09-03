@@ -1,0 +1,12 @@
+# Store text as LF in the repository and check it out as LF everywhere.
+#
+# This is authored on Windows and builds on Linux (Cloudflare Pages). Without
+# this, Git's autocrlf would rewrite line endings on checkout and a later diff
+# could show every line of a file as changed when nothing in it actually was.
+* text=auto eol=lf
+
+# Binary — never touch these.
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.pdf binary

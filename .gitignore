@@ -1,0 +1,34 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.*
+!.env.example
+
+# editors / os
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*
+
+# Source documents, ignored on purpose.
+#
+# profile.yml carries a phone number, a visa status, and compensation targets —
+# a walk-away number is not something to put in a repository that might ever be
+# public, or that a future employer might ever be given access to. The résumé
+# PDF carries the phone number too.
+#
+# Everything these files contribute to the site already lives in src/content/
+# and src/data/. Keep the originals locally; if you want them versioned, make
+# the repository private first and then `git add -f` them deliberately.
+profile.yml
+*.pdf

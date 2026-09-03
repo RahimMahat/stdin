@@ -1,0 +1,39 @@
+---
+import Shell from '../layouts/Shell.astro'
+import { loadSite } from '../data/site'
+import { pageCommands, runForPage, canonical } from '../commands'
+import { projectOutput } from '../commands/cat'
+import { renderStatic } from '../render/static'
+import { rule, line } from '../render/ast'
+import type { Out } from '../render/ast'
+
+/**
+ * The whole site as one linear document. This is where the skip-link goes, and
+ * it is the page that has to work when everything else about the concept fails
+ * to land — a visitor who wants the résumé and nothing else gets it here.
+ */
+const data = await loadSite()
+
+const sections: Out[] = []
+for (const cmd of pageCommands()) {
+  if (cmd.name === 'theme' || cmd.name === 'help') continue
+  sections.push(line(`$ ${canonical(cmd)}`, 'accent'))
+  sections.push(...runForPage(cmd, data))
+  sections.push(rule())
+}
+for (const p of data.projects) {
+  sections.push(line(`$ cat projects/${p.slug}`, 'accent'))
+  sections.push(...projectOutput(p, data))
+  sections.push(rule())
+}
+
+const html = renderStatic(sections)
+---
+
+<Shell
+  title="resume"
+  description={`The complete résumé of ${data.profile.name}, ${data.profile.role}, as one plain document.`}
+  command="cat resume.txt"
+>
+  <Fragment set:html={html} />
+</Shell>

@@ -1,0 +1,27 @@
+---
+import Shell from '../../layouts/Shell.astro'
+import { loadSite } from '../../data/site'
+import { projectOutput } from '../../commands/cat'
+import { renderStatic, renderText } from '../../render/static'
+import type { Project } from '../../commands/types'
+
+/** `cat projects/<slug>` as a real document, one per project. */
+export async function getStaticPaths() {
+  const data = await loadSite()
+  return data.projects.map((p) => ({
+    params: { slug: p.slug },
+    props: { project: p, out: projectOutput(p, data) },
+  }))
+}
+
+const { project, out } = Astro.props as { project: Project; out: ReturnType<typeof projectOutput> }
+const html = renderStatic(out)
+---
+
+<Shell
+  title={`cat projects/${project.slug}`}
+  description={renderText(out) || project.summary}
+  command={`cat projects/${project.slug}`}
+>
+  <Fragment set:html={html} />
+</Shell>

@@ -1,0 +1,63 @@
+---
+import Shell from '../layouts/Shell.astro'
+import { loadSite } from '../data/site'
+import { renderStatic } from '../render/static'
+import { cmds, line, blank } from '../render/ast'
+
+const data = await loadSite()
+const p = data.profile
+
+/**
+ * The landing page is still command output, with one exception: the masthead.
+ *
+ * A terminal never has to introduce itself to a stranger, so the metaphor gives
+ * no guidance here and following it literally produced a page where the visitor's
+ * name was the same size as everything else. This is the one block that
+ * introduces rather than prints. Everything downstream can assume you are
+ * oriented, and keeps the monospace voice.
+ */
+const out = renderStatic([
+  cmds(
+    [
+      { name: 'whoami', label: 'the short version' },
+      { name: 'ls projects/', label: 'what he has built' },
+      { name: 'skills --tree', label: 'the stack, by pipeline stage' },
+      { name: 'git log --career', label: 'how he got here' },
+      { name: 'now', label: 'what he is doing this month' },
+      { name: 'contact', label: 'reach him' },
+    ],
+    true,
+  ),
+  blank(),
+  line('help lists everything. theme light if you prefer paper.', 'dim'),
+])
+---
+
+<Shell
+  title="stdin"
+  description={`${p.name}, ${p.role} with ${p.years}. A personal site you query instead of browse.`}
+  caret={true}
+>
+  <header class="masthead" slot="masthead">
+    <h1 class="name">{p.name}</h1>
+    <p class="tagline">{p.role} · {p.location} · {p.years}</p>
+    <p class="explain">
+      A personal site you query instead of scroll. Every command below is also a real
+      page — click one if you would rather not type.
+    </p>
+    <p class="alt"><a href="/resume">or read the plain résumé →</a></p>
+  </header>
+
+  <Fragment set:html={out} />
+</Shell>
+
+<!--
+  Astro hoists page scripts into one shared bundle, so this does ship everywhere
+  rather than to the landing page alone — it costs about 40 bytes gzipped and
+  returns immediately on any page without a masthead. Splitting it out would
+  cost a rollup config and buy back less than the config weighs.
+-->
+<script>
+  import { matrixName } from '../effects/matrix-name.ts'
+  matrixName()
+</script>
