@@ -104,6 +104,23 @@ each is load-bearing:
 
 It refuses entirely on `prefers-reduced-motion` and on any device without hover.
 
+## The dotfiles
+
+`ls -a` lists three entries that `ls` does not: `.bash_history`, `.env` and
+`.plan`. `cat .plan` is the payoff — `.plan` being the file the finger daemon
+served, and the one Carmack kept as a public dev log, so the name alone is the
+handshake. `.env` refuses to be read.
+
+Staying hidden is the feature, not the content, so the tests mostly assert
+absence: no page renders them, no URL resolves to one (`pageFor` returns null
+for any dotfile), `help` does not list them, and neither tab completion nor the
+did-you-mean fallback will ever suggest one. One check walks every built HTML
+file and fails if the string `.plan` appears in any of them — a crawler must not
+be able to find what a reader had to earn.
+
+They live in `src/data/hidden.ts`. Edit the voice there; it should read like
+something written for one person rather than published.
+
 ## Adding things
 
 - **A project** — drop a file in `src/content/projects/`. It appears in
@@ -158,7 +175,7 @@ block guarded as `:root:not([data-theme="dark"])` alongside the existing
 | 1 · content + AST + static renderer | built · content complete, no placeholders |
 | 2 · the shell | built · 45 checks in `npm test` |
 | 3 · `dag` | blocked on real dates and throughput numbers |
-| 4 · polish, font subsetting, contact function | not started |
+| 4 · polish, font subsetting, contact function | started · `ls -a` egg in |
 
 Weights, gzipped: ~2.1 KB per page, 2.1 KB CSS, 7.7 KB for the shell, and
 4.8 KB for `/site.json` — the last two only for visitors whose browsers run

@@ -1,4 +1,5 @@
 import { blank, cmds, kv, line, prose, rule, type Out } from '../render/ast'
+import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
 import type { Command, Ctx, Project, SiteData } from './types'
 
@@ -40,7 +41,25 @@ export const cat: Command = {
   // are generated from the projects collection instead.
   page: false,
   run({ args, data }: Ctx): Out[] {
-    const target = (args[0] ?? '').replace(/^\.?\/?projects\//, '').replace(/\/$/, '')
+    const raw = args[0] ?? ''
+
+    // Dotfiles first: `cat .plan` must not be mistaken for a project slug.
+    // These have no page and never will — a URL would let a crawler index the
+    // one thing on this site that is supposed to be earned.
+    if (raw.startsWith('.') && !raw.startsWith('./projects')) {
+      const file = findHidden(raw)
+      if (!file) return [line(`cat: ${raw}: no such file`, 'fail')]
+      if (file.body === null) {
+        return [line(`cat: ${raw}: permission denied`, 'fail'), line('nice try.', 'dim')]
+      }
+      return [
+        line(file.name, 'accent'),
+        rule(),
+        ...file.body.split('\n').map((l) => (l ? line(l) : blank())),
+      ]
+    }
+
+    const target = raw.replace(/^\.?\/?projects\//, '').replace(/\/$/, '')
     if (!target) {
       return [
         line('cat: needs a file', 'fail'),

@@ -39,8 +39,9 @@ const built = await esbuild.build({
       import { renderStatic } from './src/render/static'
       import { renderLive } from './src/render/live'
       import { suggest } from './src/terminal/complete'
+      import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName }
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -341,7 +342,11 @@ check('gibberish still points at help', nonsense.some((n) => n.t === 'line' && n
  */
 const offered = new Set()
 for (const cmd of T.registry) for (const c of chipsOf(T.runForPage(cmd, data0))) offered.add(c)
-for (const probe of ['whoam', 'projct', 'thme', 'cat']) for (const c of chipsOf(T.run(probe, data0))) offered.add(c)
+for (const probe of ['whoam', 'projct', 'thme', 'cat', 'ls -a'])
+  for (const c of chipsOf(T.run(probe, data0))) offered.add(c)
+
+// `cat .env` refuses on purpose — that is the joke, not a broken chip.
+offered.delete('cat .env')
 
 const unrunnable = [...offered].filter((c) => /[<>[\]]/.test(c))
 check('nothing is ever offered that cannot be run', unrunnable.length === 0, unrunnable.join(' | '))
@@ -351,6 +356,56 @@ const rejected = [...offered].filter((c) => {
   return out.some((n) => n.t === 'line' && n.tone === 'fail')
 })
 check('no offered command comes back as an error', rejected.length === 0, rejected.join(' | '))
+
+/* ---------------------------------------------------------------- */
+/* the dotfiles                                                      */
+/*                                                                   */
+/* Staying hidden IS the feature, so most of these assert absence.   */
+/* ---------------------------------------------------------------- */
+
+const textOf = (nodes) =>
+  nodes
+    .map((n) =>
+      n.t === 'line' ? n.text
+      : n.t === 'cmds' ? n.items.map((i) => i.name).join(' ')
+      : n.t === 'table' ? n.rows.flat().map((c) => `${c.text} ${c.cmd ?? ''}`).join(' ')
+      : '',
+    )
+    .join(' ')
+
+check('plain ls says nothing about dotfiles', !textOf(T.run('ls projects/', data0)).includes('.plan'))
+check('ls -a reveals them', textOf(T.run('ls -a', data0)).includes('.plan'))
+check('ls -la reveals them too', textOf(T.run('ls -la', data0)).includes('.plan'))
+check('ls --all reveals them too', textOf(T.run('ls --all', data0)).includes('.plan'))
+
+const plan = T.run('cat .plan', data0)
+check('cat .plan reads the file', textOf(plan).includes('typed `ls -a` on a portfolio site'))
+check('the file keeps its line breaks', plan.filter((n) => n.t === 'blank').length > 3)
+
+const env = T.run('cat .env', data0)
+check('cat .env refuses in character', textOf(env).includes('permission denied') && textOf(env).includes('nice try'))
+check('an unknown dotfile is not invented', textOf(T.run('cat .nope', data0)).includes('no such file'))
+
+// The three ways it could leak.
+check('help never mentions a dotfile', !textOf(T.run('help', data0)).includes('.plan'))
+check(
+  'tab completion never offers a dotfile',
+  !T.suggest('.', data0).some((s) => s.value.includes('.plan')) &&
+    !T.suggest('plan', data0).some((s) => s.value.includes('.plan')),
+)
+check(
+  'did-you-mean never offers a dotfile',
+  !['pln', 'plan', 'env', 'bash'].some((q) => textOf(T.run(q, data0)).includes('.plan')),
+)
+check('a dotfile can never resolve to a url', T.pageFor('cat .plan') === null && T.pageFor('cat .env') === null)
+
+// The one that matters: nothing crawlable ever contains it.
+const builtPages = (await readdir('dist', { recursive: true })).filter((f) => String(f).endsWith('.html'))
+const leaked = []
+for (const f of builtPages) {
+  if ((await readFile(`dist/${f}`, 'utf8')).includes('.plan')) leaked.push(String(f))
+}
+check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leaked.join(', '))
 
 /* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */

@@ -150,6 +150,9 @@ export function pageFor(input: string, slugs?: string[]): string | null {
   if (cmd.name === 'cat') {
     const slug = (real[0] ?? '').replace(/^\.?\/?projects\//, '').replace(/\/$/, '')
     if (!slug) return null
+    // Hidden files are reachable only through the shell. Giving one a URL would
+    // put it in the sitemap and undo the point of hiding it.
+    if (slug.startsWith('.')) return null
     if (slugs && !slugs.includes(slug)) return null
     return `/projects/${slug}`
   }
