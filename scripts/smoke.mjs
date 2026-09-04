@@ -74,7 +74,7 @@ virtualConsole.on('jsdomError', (e) => thrown.push(e))
 
 const dom = new JSDOM(html, {
   runScripts: 'outside-only',
-  url: 'https://stdin-er5.pages.dev/whoami',
+  url: 'https://rahim-stdin.pages.dev/whoami',
   // Without this jsdom omits requestAnimationFrame, which the reveal needs.
   pretendToBeVisual: true,
   virtualConsole,
@@ -456,7 +456,7 @@ check('the root canonical is the bare origin, not /index',
  */
 async function scrambleRun({ hover = true, reduced = false, clientX = 75 }) {
   const d2 = new JSDOM(await readFile('dist/index.html', 'utf8'), {
-    url: 'https://stdin-er5.pages.dev/',
+    url: 'https://rahim-stdin.pages.dev/',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   })

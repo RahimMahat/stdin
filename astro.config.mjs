@@ -6,7 +6,7 @@ export default defineConfig({
   // it must be a domain that actually serves the site. Cloudflare Pages hands
   // out <project>.pages.dev; change this the day a real domain is bought, and
   // not before — a canonical pointing somewhere that 404s is worse than none.
-  site: 'https://stdin-er5.pages.dev',
+  site: 'https://rahim-stdin.pages.dev',
   output: 'static',
   trailingSlash: 'never',
   build: {
