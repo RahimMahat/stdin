@@ -501,10 +501,30 @@ check(
  * because the labels are short enough to fit, and the thing that breaks that
  * is someone adding a seventh destination a year from now.
  */
-const crumbDoc = new JSDOM(await readFile('dist/index.html', 'utf8')).window.document
+const crumbDoc = new JSDOM(await readFile('dist/whoami.html', 'utf8')).window.document
 const crumbLinks = [...crumbDoc.querySelectorAll('.crumbs a')]
 
 check('the crumbs are a labelled nav', crumbDoc.querySelector('nav.crumbs[aria-label]') !== null)
+
+/* The landing page prints this same list as a grid, with a line of explanation
+   under each. Two copies of one nav is what this removes. */
+const landingHtml = await readFile('dist/index.html', 'utf8')
+check(
+  'the landing page prints no crumb row',
+  !landingHtml.includes('class="crumbs"'),
+  'its own output already is the list of destinations',
+)
+const crumbless = []
+for (const f of builtPages) {
+  if (String(f) === 'index.html') continue
+  const html = await readFile(`dist/${f}`, 'utf8')
+  if (!html.includes('class="crumbs"')) crumbless.push(String(f))
+}
+check(
+  'every other page keeps it — it is their only way around',
+  crumbless.length === 0,
+  crumbless.join(', '),
+)
 check(
   'the home crumb has a spoken name, not "tilde"',
   crumbLinks[0]?.getAttribute('aria-label') === 'home',
@@ -548,7 +568,7 @@ check('the home crumb gets a floor width', cssNorm.includes('min-width:40px'))
  * That is the first thing asserted here, from the built HTML rather than from
  * the mounted DOM.
  */
-const rawIndex = await readFile('dist/index.html', 'utf8')
+const rawIndex = await readFile('dist/whoami.html', 'utf8')
 check(
   'the menu button ships hidden, so no-JS keeps the row',
   rawIndex.includes('class="nav-toggle" hidden'),
