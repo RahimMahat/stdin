@@ -88,14 +88,36 @@ const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') ||
         without saying anything untrue. "~" gets a spoken name because a screen
         reader otherwise announces it as "tilde", which is not a destination.
       -->
+      <!--
+        "~" stays out of the menu: home is the one destination worth a single
+        tap. The argument halves are wrapped so the row can shorten without the
+        labels saying anything untrue, and the button ships hidden so a visitor
+        without JS keeps the row rather than a control that does nothing.
+      -->
       <nav class="crumbs" aria-label="sections">
         <a href="/" aria-label="home">~</a>
-        <a href="/whoami">whoami</a>
-        <a href="/ls">ls<span class="crumb-arg"> projects</span></a>
-        <a href="/skills">skills</a>
-        <a href="/git">git<span class="crumb-arg"> log</span></a>
-        <a href="/now">now</a>
-        <a href="/contact">contact</a>
+
+        <button
+          type="button"
+          class="nav-toggle"
+          hidden
+          aria-expanded="false"
+          aria-controls="nav-links"
+        >
+          <span class="nav-sigil" aria-hidden="true">%</span>menu<span
+            class="nav-caret"
+            aria-hidden="true"
+          ></span>
+        </button>
+
+        <div class="nav-links" id="nav-links">
+          <a href="/whoami">whoami</a>
+          <a href="/ls">ls<span class="crumb-arg"> projects</span></a>
+          <a href="/skills">skills</a>
+          <a href="/git">git<span class="crumb-arg"> log</span></a>
+          <a href="/now">now</a>
+          <a href="/contact">contact</a>
+        </div>
       </nav>
 
       <!-- Landing page only: the one block that introduces rather than prints. -->

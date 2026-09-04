@@ -42,7 +42,8 @@ const built = await esbuild.build({
       import { suggest } from './src/terminal/complete'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor }
+      import { mountNavMenu } from './src/effects/nav-menu'
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, mountNavMenu }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -522,7 +523,7 @@ const mobileWidth = crumbLinks.reduce((total, a) => {
   return total + Math.max(shown * CH + PAD, a.getAttribute('href') === '/' ? 40 : 0)
 }, 0)
 check(
-  `the crumbs fit one row on a 360px phone (${Math.round(mobileWidth)}px of ${BUDGET})`,
+  `without JS the crumbs still fit one row on a 360px phone (${Math.round(mobileWidth)}px of ${BUDGET})`,
   mobileWidth <= BUDGET,
   'shorten a label or drop a destination',
 )
@@ -536,6 +537,88 @@ check(
 check('the narrow breakpoint drops the argument halves', cssNorm.includes('.crumb-arg{display:none'))
 check('the crumbs get a padded hit area', cssNorm.includes('.crumbsa{padding:10px7px'))
 check('the home crumb gets a floor width', cssNorm.includes('min-width:40px'))
+
+/* ---------------------------------------------------------------- */
+/* the collapsed nav                                                 */
+/* ---------------------------------------------------------------- */
+
+/**
+ * The button ships hidden and the script reveals it, so the failure mode when
+ * this file never loads is a working row of links rather than a dead control.
+ * That is the first thing asserted here, from the built HTML rather than from
+ * the mounted DOM.
+ */
+const rawIndex = await readFile('dist/index.html', 'utf8')
+check(
+  'the menu button ships hidden, so no-JS keeps the row',
+  rawIndex.includes('class="nav-toggle" hidden'),
+  'the button must not be visible until the script reveals it',
+)
+
+async function navRun({ narrow = true } = {}) {
+  const d2 = new JSDOM(rawIndex, {
+    url: 'https://rahim-stdin.pages.dev/',
+    runScripts: 'outside-only',
+    pretendToBeVisual: true,
+  })
+  const w = d2.window
+  w.matchMedia = (q) => ({
+    matches: String(q).includes('max-width') ? narrow : false,
+    addEventListener() {},
+    removeEventListener() {},
+  })
+  w.eval(code)
+  w.__t.mountNavMenu()
+  const doc = w.document
+  return {
+    w,
+    doc,
+    nav: doc.querySelector('.crumbs'),
+    toggle: doc.querySelector('.nav-toggle'),
+    links: doc.querySelector('.nav-links'),
+    click: (el) => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true })),
+  }
+}
+
+const phone = await navRun({ narrow: true })
+check('a narrow screen reveals the control', phone.toggle.hidden === false)
+check('the collapsed state is declared on the root', phone.doc.documentElement.dataset.nav === 'menu')
+check('it starts closed', phone.toggle.getAttribute('aria-expanded') === 'false')
+check(
+  'the control names the panel it opens',
+  phone.toggle.getAttribute('aria-controls') === phone.links.id,
+  `${phone.toggle.getAttribute('aria-controls')} vs ${phone.links.id}`,
+)
+
+phone.click(phone.toggle)
+check('tapping it opens the panel', phone.nav.classList.contains('open'))
+check('the open state is announced', phone.toggle.getAttribute('aria-expanded') === 'true')
+
+phone.click(phone.doc.body)
+check('a tap outside dismisses it', phone.nav.classList.contains('open') === false)
+
+phone.click(phone.toggle)
+phone.nav.dispatchEvent(new phone.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+check('escape closes it', phone.nav.classList.contains('open') === false)
+check('escape hands the focus back', phone.doc.activeElement === phone.toggle)
+
+check(
+  'home stays out of the menu — one tap, always',
+  phone.nav.querySelector(':scope > a[href="/"]') !== null &&
+    phone.links.querySelector('a[href="/"]') === null,
+)
+check(
+  'every other destination is in the panel',
+  phone.links.querySelectorAll('a').length === 6,
+  `${phone.links.querySelectorAll('a').length} links`,
+)
+
+const desktop = await navRun({ narrow: false })
+check('a wide screen never shows the control', desktop.toggle.hidden === true)
+check('and declares no collapsed state', desktop.doc.documentElement.dataset.nav === undefined)
+
+check('the panel borrows the listbox surface', cssNorm.includes('background:var(--surface)'))
+check('the full labels come back inside the panel', cssNorm.includes(".crumb-arg{display:inline"))
 
 /* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */
