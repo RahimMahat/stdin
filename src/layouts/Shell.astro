@@ -82,12 +82,18 @@ const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') ||
     <a class="skip" href="/resume">skip to the plain résumé</a>
 
     <main class="session">
+      <!--
+        The argument halves are wrapped so the narrow breakpoint can drop them.
+        `ls` and `git` are still the real command names, so the row shortens
+        without saying anything untrue. "~" gets a spoken name because a screen
+        reader otherwise announces it as "tilde", which is not a destination.
+      -->
       <nav class="crumbs" aria-label="sections">
-        <a href="/">~</a>
+        <a href="/" aria-label="home">~</a>
         <a href="/whoami">whoami</a>
-        <a href="/ls">ls projects</a>
+        <a href="/ls">ls<span class="crumb-arg"> projects</span></a>
         <a href="/skills">skills</a>
-        <a href="/git">git log</a>
+        <a href="/git">git<span class="crumb-arg"> log</span></a>
         <a href="/now">now</a>
         <a href="/contact">contact</a>
       </nav>

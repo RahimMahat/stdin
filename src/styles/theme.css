@@ -436,6 +436,31 @@ a.cell:hover { text-decoration: underline; }
   .cmds.grid { grid-template-columns: minmax(0, 1fr); }
   .ac-label { display: none; }
   .ac { max-height: 11em; }
+
+  /* ---- crumbs: one row, and targets a thumb can actually hit ----
+   *
+   * At 13px monospace the full labels run about 404px, so "contact" used to
+   * orphan onto a second line on every phone. Dropping the argument halves
+   * takes the row to ~335px, which fits from 360px up and wraps tidily below.
+   *
+   * Spacing moves from gap to padding so the hit areas are contiguous rather
+   * than separated by dead pixels: each link is now ~45px tall, and "~" — a
+   * single 7px glyph before this — is given a 40px floor. The negative margin
+   * cancels the outer padding so the row still lines up with the body text.
+   */
+  .crumbs {
+    gap: 0;
+    margin: 0 -7px 22px;
+  }
+  .crumbs a {
+    padding: 10px 7px;
+    border-radius: 4px;
+  }
+  .crumbs a[href="/"] {
+    min-width: 40px;
+    text-align: center;
+  }
+  .crumb-arg { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

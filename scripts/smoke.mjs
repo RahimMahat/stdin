@@ -491,6 +491,53 @@ check(
 )
 
 /* ---------------------------------------------------------------- */
+/* the crumbs on a phone                                             */
+/* ---------------------------------------------------------------- */
+
+/**
+ * jsdom has no layout engine, so none of this can measure a rendered row.
+ * What it can do is hold the *budget*: the row is only one line on a phone
+ * because the labels are short enough to fit, and the thing that breaks that
+ * is someone adding a seventh destination a year from now.
+ */
+const crumbDoc = new JSDOM(await readFile('dist/index.html', 'utf8')).window.document
+const crumbLinks = [...crumbDoc.querySelectorAll('.crumbs a')]
+
+check('the crumbs are a labelled nav', crumbDoc.querySelector('nav.crumbs[aria-label]') !== null)
+check(
+  'the home crumb has a spoken name, not "tilde"',
+  crumbLinks[0]?.getAttribute('aria-label') === 'home',
+  crumbLinks[0]?.outerHTML,
+)
+
+/* JetBrains Mono advances 0.6em; the crumbs sit at 13px with 7px of padding
+   a side. A 360px phone leaves 342px once the body padding and the row's
+   negative margin are accounted for. */
+const CH = 13 * 0.6
+const PAD = 14
+const BUDGET = 342
+const mobileWidth = crumbLinks.reduce((total, a) => {
+  const arg = a.querySelector('.crumb-arg')
+  const shown = a.textContent.length - (arg ? arg.textContent.length : 0)
+  return total + Math.max(shown * CH + PAD, a.getAttribute('href') === '/' ? 40 : 0)
+}, 0)
+check(
+  `the crumbs fit one row on a 360px phone (${Math.round(mobileWidth)}px of ${BUDGET})`,
+  mobileWidth <= BUDGET,
+  'shorten a label or drop a destination',
+)
+check(
+  'the argument halves are droppable',
+  crumbDoc.querySelectorAll('.crumbs .crumb-arg').length === 2,
+  `${crumbDoc.querySelectorAll('.crumbs .crumb-arg').length} found`,
+)
+
+/* The rules that make the above true live in the stylesheet, not the markup. */
+check('the narrow breakpoint drops the argument halves', cssNorm.includes('.crumb-arg{display:none'))
+check('the crumbs get a padded hit area', cssNorm.includes('.crumbsa{padding:10px7px'))
+check('the home crumb gets a floor width', cssNorm.includes('min-width:40px'))
+
+/* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */
 /* ---------------------------------------------------------------- */
 
