@@ -224,34 +224,6 @@ a.cell:hover { text-decoration: underline; }
 .crumbs a { color: var(--dim); text-decoration: none; }
 .crumbs a:hover { color: var(--accent); }
 
-/* The row and the menu hold the same six links; only the presentation moves. */
-.nav-links { display: flex; flex-wrap: wrap; gap: 14px; }
-
-/* Reads as something you could have typed, rather than as application chrome. */
-.nav-toggle {
-  font: inherit;
-  font-size: 13px;
-  color: var(--dim);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.nav-toggle[hidden] { display: none; }
-.nav-sigil { color: var(--accent); }
-.nav-caret {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid currentColor;
-  transition: transform 140ms ease;
-}
-.crumbs.open .nav-toggle { color: var(--accent); }
-.crumbs.open .nav-caret { transform: rotate(180deg); }
-
 .footer {
   margin: 64px 0 0;
   padding: 20px 0 0;
@@ -489,41 +461,6 @@ a.cell:hover { text-decoration: underline; }
     text-align: center;
   }
   .crumb-arg { display: none; }
-
-  /* ---- collapsed: one control, and a panel of destinations ----
-   *
-   * Only reached once the script has revealed the button, so a visitor
-   * without JS keeps the row above. The panel borrows the completion
-   * listbox: same surface, same border, same shadow — the site already
-   * has a way of drawing "a list of commands you can pick from".
-   */
-  [data-nav='menu'] .crumbs { position: relative; }
-  [data-nav='menu'] .nav-links { display: none; }
-  [data-nav='menu'] .nav-toggle { padding: 10px 7px; border-radius: 4px; }
-
-  [data-nav='menu'] .crumbs.open .nav-links {
-    display: block;
-    position: absolute;
-    z-index: 20;
-    left: 0;
-    right: 0;
-    top: calc(100% + 6px);
-    gap: 0;
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px color-mix(in oklab, var(--ground) 70%, transparent);
-  }
-  [data-nav='menu'] .crumbs.open .nav-links a {
-    display: block;
-    padding: 13px 14px;
-    color: var(--ink);
-  }
-  [data-nav='menu'] .crumbs.open .nav-links a + a { border-top: 1px solid var(--rule); }
-
-  /* Vertical, so the full labels fit again — no reason to abbreviate here. */
-  [data-nav='menu'] .crumb-arg { display: inline; }
 }
 
 @media (prefers-reduced-motion: reduce) {
