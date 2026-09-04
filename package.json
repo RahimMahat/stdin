@@ -13,7 +13,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "check:content": "node scripts/check-content.mjs",
-    "test": "npm run build && node scripts/smoke.mjs"
+    "test": "npm run build && node scripts/smoke.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "astro": "^5.14.1",

@@ -445,6 +445,52 @@ check('the root canonical is the bare origin, not /index',
   rootCanonical ? rootCanonical[1] : 'missing')
 
 /* ---------------------------------------------------------------- */
+/* the favicon set                                                   */
+/* ---------------------------------------------------------------- */
+
+/**
+ * A missing favicon is invisible in every test that only reads HTML — the tab
+ * just renders the browser's blank page glyph. These assert the files actually
+ * ship and that every page points at them.
+ */
+const iconFiles = ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png']
+for (const f of iconFiles) {
+  let bytes = 0
+  try {
+    bytes = (await readFile(`dist/${f}`)).length
+  } catch {
+    /* left at 0 — the check below reports it */
+  }
+  check(`dist ships ${f}`, bytes > 0, `${bytes} bytes`)
+}
+
+const iconRefs = [
+  ['svg icon', '<link rel="icon" href="/favicon.svg"'],
+  ['ico fallback', '<link rel="icon" href="/favicon.ico"'],
+  ['apple touch icon', '<link rel="apple-touch-icon" href="/apple-touch-icon.png"'],
+  ['theme colour', '<meta name="theme-color" content="#14161d"'],
+]
+for (const [label, needle] of iconRefs) {
+  const missing = []
+  for (const f of builtPages) {
+    const html = await readFile(`dist/${f}`, 'utf8')
+    if (!html.includes(needle)) missing.push(String(f))
+  }
+  check(`every page declares the ${label}`, missing.length === 0, missing.join(', '))
+}
+
+/* The .svg is hand-written and the raster set is generated, so the two can
+   drift apart silently. Pin the geometry they are supposed to share. */
+const svg = await readFile('dist/favicon.svg', 'utf8')
+check('the svg mark uses the accent colour', svg.includes('#e8a33d'))
+check('the svg tile uses the dark ground', svg.includes('#14161d'))
+check(
+  'the svg caret keeps the 1:2.17 ratio of .caret',
+  svg.includes('width="7.68" height="16.64"'),
+  svg.slice(0, 200),
+)
+
+/* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */
 /* ---------------------------------------------------------------- */
 

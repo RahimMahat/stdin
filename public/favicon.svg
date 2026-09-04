@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="stdin">
+  <!-- The caret from .caret, at the ratio it has on the page: 8px x 1.05em.
+       Geometry mirrors scripts/make-icons.mjs; smoke.mjs checks they agree. -->
+  <rect width="32" height="32" rx="7.04" fill="#14161d"/>
+  <rect x="12.16" y="7.68" width="7.68" height="16.64" fill="#e8a33d"/>
+</svg>

@@ -18,6 +18,11 @@ export function applyTheme(arg?: string): Theme {
     arg === 'light' || arg === 'dark' ? arg : currentTheme() === 'dark' ? 'light' : 'dark'
 
   document.documentElement.setAttribute('data-theme', next)
+
+  // Mobile browser chrome reads this; leaving it stale is the one visible way
+  // a theme switch can look half-applied.
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', next === 'light' ? '#faf7f2' : '#14161d')
   try {
     localStorage.setItem(THEME_KEY, next)
   } catch {
