@@ -524,6 +524,39 @@ check(
   crumbless.length === 0,
   crumbless.join(', '),
 )
+
+/**
+ * Removing the crumbs from the landing page took its top spacing with them —
+ * the row was the only thing holding the masthead off the viewport edge. These
+ * hold the replacement in place.
+ */
+check(
+  'the page is held off the top edge',
+  cssNorm.includes('padding:44px24px96px'),
+  'the body must not start at y=0 — nothing else provides that gap',
+)
+check('and on a phone too', cssNorm.includes('body{padding:28px16px72px'))
+
+check(
+  'the landing page carries the site mark',
+  landingHtml.includes('class="sitemark"'),
+  'it stands where the crumb row stands elsewhere',
+)
+const marked = []
+for (const f of builtPages) {
+  if (String(f) === 'index.html') continue
+  const html = await readFile(`dist/${f}`, 'utf8')
+  if (html.includes('class="sitemark"')) marked.push(String(f))
+}
+check('and no other page does — the crumbs hold that line', marked.length === 0, marked.join(', '))
+check(
+  'the mark reuses the caret, not a second shape',
+  cssNorm.includes('.sitemark.blk{width:8px;height:15px;background:var(--accent)'),
+)
+check(
+  'the mark stops blinking when motion is refused',
+  cssNorm.includes('.sitemark.blk{animation:none'),
+)
 check(
   'the home crumb has a spoken name, not "tilde"',
   crumbLinks[0]?.getAttribute('aria-label') === 'home',

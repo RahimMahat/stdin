@@ -53,7 +53,7 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  padding: 0 24px 96px;
+  padding: 44px 24px 96px;
   background: var(--ground);
   color: var(--ink);
   font-family: var(--mono);
@@ -246,6 +246,33 @@ a.cell:hover { text-decoration: underline; }
  * else, so the eye lands here first and exactly once.
  * ------------------------------------------------------------------ */
 
+/* ---- the site mark ----
+ *
+ * Landing page only; everywhere else the crumb row occupies this line.
+ *
+ * The same block that blinks in the prompt and sits in the browser tab, so
+ * the favicon, the cursor and the wordmark are one shape rather than three.
+ * It is decoration in the sense that the <h1> below carries the identity —
+ * but it is the shape a visitor just clicked in their tab bar, which is the
+ * one thing on this page they have already seen.
+ */
+.sitemark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 30px;
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+.sitemark .blk {
+  width: 8px;
+  height: 15px;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: blink 1.15s steps(1, end) infinite;
+}
+
 .masthead { margin: 0 0 34px; }
 
 .masthead .name {
@@ -425,7 +452,7 @@ a.cell:hover { text-decoration: underline; }
 }
 
 @media (max-width: 640px) {
-  body { padding: 0 16px 72px; font-size: 14px; }
+  body { padding: 28px 16px 72px; font-size: 14px; }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .kv dt { color: var(--faint); margin-top: 0.6em; }
   .commit { grid-template-columns: minmax(0, 1fr); }
@@ -465,6 +492,7 @@ a.cell:hover { text-decoration: underline; }
 
 @media (prefers-reduced-motion: reduce) {
   .caret { animation: none; }
+  .sitemark .blk { animation: none; }
   /* Also refused in JS — see effects/matrix-name.ts. */
   .masthead .name .g.on { color: inherit; }
   .masthead .name .g.on::after { content: none; }
