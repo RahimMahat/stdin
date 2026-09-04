@@ -42,8 +42,7 @@ const built = await esbuild.build({
       import { suggest } from './src/terminal/complete'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      import { mountNavMenu } from './src/effects/nav-menu'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, mountNavMenu }
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -501,10 +500,63 @@ check(
  * because the labels are short enough to fit, and the thing that breaks that
  * is someone adding a seventh destination a year from now.
  */
-const crumbDoc = new JSDOM(await readFile('dist/index.html', 'utf8')).window.document
+const crumbDoc = new JSDOM(await readFile('dist/whoami.html', 'utf8')).window.document
 const crumbLinks = [...crumbDoc.querySelectorAll('.crumbs a')]
 
 check('the crumbs are a labelled nav', crumbDoc.querySelector('nav.crumbs[aria-label]') !== null)
+
+/* The landing page prints this same list as a grid, with a line of explanation
+   under each. Two copies of one nav is what this removes. */
+const landingHtml = await readFile('dist/index.html', 'utf8')
+check(
+  'the landing page prints no crumb row',
+  !landingHtml.includes('class="crumbs"'),
+  'its own output already is the list of destinations',
+)
+const crumbless = []
+for (const f of builtPages) {
+  if (String(f) === 'index.html') continue
+  const html = await readFile(`dist/${f}`, 'utf8')
+  if (!html.includes('class="crumbs"')) crumbless.push(String(f))
+}
+check(
+  'every other page keeps it — it is their only way around',
+  crumbless.length === 0,
+  crumbless.join(', '),
+)
+
+/**
+ * Removing the crumbs from the landing page took its top spacing with them —
+ * the row was the only thing holding the masthead off the viewport edge. These
+ * hold the replacement in place.
+ */
+check(
+  'the page is held off the top edge',
+  cssNorm.includes('padding:44px24px96px'),
+  'the body must not start at y=0 — nothing else provides that gap',
+)
+check('and on a phone too', cssNorm.includes('body{padding:28px16px72px'))
+
+check(
+  'the landing page carries the site mark',
+  landingHtml.includes('class="sitemark"'),
+  'it stands where the crumb row stands elsewhere',
+)
+const marked = []
+for (const f of builtPages) {
+  if (String(f) === 'index.html') continue
+  const html = await readFile(`dist/${f}`, 'utf8')
+  if (html.includes('class="sitemark"')) marked.push(String(f))
+}
+check('and no other page does — the crumbs hold that line', marked.length === 0, marked.join(', '))
+check(
+  'the mark reuses the caret, not a second shape',
+  cssNorm.includes('.sitemark.blk{width:8px;height:15px;background:var(--accent)'),
+)
+check(
+  'the mark stops blinking when motion is refused',
+  cssNorm.includes('.sitemark.blk{animation:none'),
+)
 check(
   'the home crumb has a spoken name, not "tilde"',
   crumbLinks[0]?.getAttribute('aria-label') === 'home',
@@ -523,7 +575,7 @@ const mobileWidth = crumbLinks.reduce((total, a) => {
   return total + Math.max(shown * CH + PAD, a.getAttribute('href') === '/' ? 40 : 0)
 }, 0)
 check(
-  `without JS the crumbs still fit one row on a 360px phone (${Math.round(mobileWidth)}px of ${BUDGET})`,
+  `the crumbs fit one row on a 360px phone (${Math.round(mobileWidth)}px of ${BUDGET})`,
   mobileWidth <= BUDGET,
   'shorten a label or drop a destination',
 )
@@ -538,87 +590,6 @@ check('the narrow breakpoint drops the argument halves', cssNorm.includes('.crum
 check('the crumbs get a padded hit area', cssNorm.includes('.crumbsa{padding:10px7px'))
 check('the home crumb gets a floor width', cssNorm.includes('min-width:40px'))
 
-/* ---------------------------------------------------------------- */
-/* the collapsed nav                                                 */
-/* ---------------------------------------------------------------- */
-
-/**
- * The button ships hidden and the script reveals it, so the failure mode when
- * this file never loads is a working row of links rather than a dead control.
- * That is the first thing asserted here, from the built HTML rather than from
- * the mounted DOM.
- */
-const rawIndex = await readFile('dist/index.html', 'utf8')
-check(
-  'the menu button ships hidden, so no-JS keeps the row',
-  rawIndex.includes('class="nav-toggle" hidden'),
-  'the button must not be visible until the script reveals it',
-)
-
-async function navRun({ narrow = true } = {}) {
-  const d2 = new JSDOM(rawIndex, {
-    url: 'https://rahim-stdin.pages.dev/',
-    runScripts: 'outside-only',
-    pretendToBeVisual: true,
-  })
-  const w = d2.window
-  w.matchMedia = (q) => ({
-    matches: String(q).includes('max-width') ? narrow : false,
-    addEventListener() {},
-    removeEventListener() {},
-  })
-  w.eval(code)
-  w.__t.mountNavMenu()
-  const doc = w.document
-  return {
-    w,
-    doc,
-    nav: doc.querySelector('.crumbs'),
-    toggle: doc.querySelector('.nav-toggle'),
-    links: doc.querySelector('.nav-links'),
-    click: (el) => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true })),
-  }
-}
-
-const phone = await navRun({ narrow: true })
-check('a narrow screen reveals the control', phone.toggle.hidden === false)
-check('the collapsed state is declared on the root', phone.doc.documentElement.dataset.nav === 'menu')
-check('it starts closed', phone.toggle.getAttribute('aria-expanded') === 'false')
-check(
-  'the control names the panel it opens',
-  phone.toggle.getAttribute('aria-controls') === phone.links.id,
-  `${phone.toggle.getAttribute('aria-controls')} vs ${phone.links.id}`,
-)
-
-phone.click(phone.toggle)
-check('tapping it opens the panel', phone.nav.classList.contains('open'))
-check('the open state is announced', phone.toggle.getAttribute('aria-expanded') === 'true')
-
-phone.click(phone.doc.body)
-check('a tap outside dismisses it', phone.nav.classList.contains('open') === false)
-
-phone.click(phone.toggle)
-phone.nav.dispatchEvent(new phone.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-check('escape closes it', phone.nav.classList.contains('open') === false)
-check('escape hands the focus back', phone.doc.activeElement === phone.toggle)
-
-check(
-  'home stays out of the menu — one tap, always',
-  phone.nav.querySelector(':scope > a[href="/"]') !== null &&
-    phone.links.querySelector('a[href="/"]') === null,
-)
-check(
-  'every other destination is in the panel',
-  phone.links.querySelectorAll('a').length === 6,
-  `${phone.links.querySelectorAll('a').length} links`,
-)
-
-const desktop = await navRun({ narrow: false })
-check('a wide screen never shows the control', desktop.toggle.hidden === true)
-check('and declares no collapsed state', desktop.doc.documentElement.dataset.nav === undefined)
-
-check('the panel borrows the listbox surface', cssNorm.includes('background:var(--surface)'))
-check('the full labels come back inside the panel', cssNorm.includes(".crumb-arg{display:inline"))
 
 /* ---------------------------------------------------------------- */
 /* the masthead hover scramble                                       */

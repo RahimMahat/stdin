@@ -1,5 +1,4 @@
 import { mount } from './shell'
-import { mountNavMenu } from '../effects/nav-menu'
 
 /**
  * Entry point for the live shell. Bundled and deferred by Astro, so it always
@@ -7,4 +6,3 @@ import { mountNavMenu } from '../effects/nav-menu'
  * output is readable before this file exists.
  */
 mount()
-mountNavMenu()
