@@ -142,6 +142,27 @@ be able to find what a reader had to earn.
 They live in `src/data/hidden.ts`. Edit the voice there; it should read like
 something written for one person rather than published.
 
+## The 404
+
+`src/pages/404.astro` builds to a top-level `404.html`, which is the one file
+Cloudflare Pages looks for and serves with a real 404 status. Without it a
+missing route gets `200` and a bare host page — a soft 404, which fails in both
+directions at once: a crawler indexes something that says nothing, and a reader
+who dropped a character hits a dead end.
+
+It answers the way the shell answers an unknown command — report, then offer the
+nearest real things — because someone who mistyped a URL and someone who
+mistyped a command have made the same mistake. What it cannot do is name what
+they asked for: one static file stands in for every missing path, so it says
+what did not resolve rather than echoing a command nobody typed. That is also
+why it is the one page whose `<h1>` is not a command echo — it has none — and
+the `error` prop on `Shell.astro` exists for exactly this page.
+
+It is `noindex`, because it is a real file at `/404` as well as the fallback,
+and one test asserts the inverse: that no *other* page carries a robots meta.
+A stray `noindex` is one attribute away from deindexing the whole site and
+nothing else would notice.
+
 ## Adding things
 
 - **A project** — drop a file in `src/content/projects/`. It appears in
@@ -195,9 +216,17 @@ Static output in `dist/`. Cloudflare Pages, built from `main`:
 
 | setting | value |
 | --- | --- |
-| build command | `npm run build` |
+| build command | `npm run check:content && npm run build` |
 | output directory | `dist` |
 | framework preset | Astro |
+| node | pinned by `.nvmrc` |
+
+Pages builds every branch, so a push gives a preview URL before anything
+reaches production; `/` becomes `-` in the alias, so `fix/404-page` is served at
+`fix-404-page.rahim-stdin.pages.dev`. Merging to `main` deploys production.
+Verify a deploy by **content-type, not status code** — Pages answers a missing
+asset with `200` and an HTML body, so a status-only check reports success for
+files that are not there.
 
 `site` in `astro.config.mjs` is the canonical origin, and every
 `<link rel="canonical">` on every page is generated from it. **It must name a
@@ -206,29 +235,38 @@ the Pages subdomain; change it the day one is bought, and not before. A
 canonical pointing at an origin that does not resolve is worse than no canonical
 at all, because a crawler believes it.
 
-`npm run check:content` and `npm test` are not yet wired into CI. They should be
-before anything else lands — the guards below only earn their keep once a broken
-build can reach production.
+`npm run check:content` runs inside the Pages build, so a TODO marker cannot
+reach production. `npm test` does not — it needs a built `dist/` and a jsdom
+run, and there is no GitHub Actions workflow here on purpose. **Run it locally
+before opening a PR**; it is the only thing that proves the shell and the
+renderer parity, and nothing between your branch and production will run it for
+you.
 
 ## Status
 
 | phase | state |
 | --- | --- |
 | 1 · content + AST + static renderer | built · no placeholders left |
-| 2 · the shell | built · 83 checks in `npm test` |
+| 2 · the shell | built · 126 checks in `npm test` |
 | 3 · `dag` | blocked on real throughput numbers |
-| 4 · polish, font subsetting, contact function | started · `ls -a` egg in |
-| 5 · deploy | repo pushed · Pages project not yet created |
+| 4 · polish, font subsetting, contact function | started · `ls -a` egg, `404` in |
+| 5 · deploy | live on Cloudflare Pages as `rahim-stdin` |
 
-Weights, gzipped: 2.2 KB for a typical page (`/resume` is the outlier at 7.1 KB,
-being the whole CV), 2.4 KB CSS, 8.8 KB for the shell, and 4.4 KB for
+Weights, gzipped: about 3 KB for a typical page (`/resume` is the outlier at
+7.8 KB, being the whole CV), 2.5 KB CSS, 8.6 KB for the shell, and 4.4 KB for
 `/site.json` — the last two only for visitors whose browsers run JavaScript, and
 the payload only on idle.
 
 Known defects, real and unfixed:
 
-- **On `/`, the crumbs repeat the command grid** immediately below it — the same
-  destinations twice in a row.
+- **`now/` expires on 2026-12-02.** The 90-day staleness rule lives in the
+  content schema, so it fails the build rather than a test: production stops
+  deploying 90 days after `updated:` in `src/content/now/current.md`, with no
+  code change and no warning beforehand. That is the design working — a stale
+  "now" is worse than no "now" — but the date is worth knowing in advance.
+- **The tab can name output that is no longer on screen.** `document.title` is
+  set when a command pushes a URL and restored by neither `clear()` nor
+  `popstate`.
 
 Phase 4 also replaces the Google Fonts link with subset, self-hosted woff2, and
 adds the contact form as a Pages Function.

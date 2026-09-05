@@ -98,14 +98,17 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 97, in
-`scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`):
+Correctness lives in build-time checks rather than in review. Currently 126, in
+`scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
+is printed by `npm test`; update it here when it moves:
 
 - content schema and a 90-day staleness rule on `now`
 - exactly one project may be marked `failed`
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin
+- every page carries exactly one `<h1>`, and it is the command, not the PS1
+- `404.html` ships, is `noindex`, and is the only page that is
 - the favicon set ships and every page references it
 - the terminal driven in real jsdom, including the masthead effect
 - renderer parity
@@ -142,6 +145,10 @@ match their density rather than adding narration.
 
 ## Known defects
 
-- No `404.astro`. Missing URLs return **`200`** with a bare Cloudflare page —
-  a soft 404 that crawlers will index, and a dead end for anyone who mistypes.
-- On `/`, the crumbs duplicate the command grid directly below them.
+- **`now/` expires on 2026-12-02.** The 90-day staleness rule is a schema
+  refinement, so it fails the *build*, not a test — production stops deploying
+  90 days after `updated:` in `src/content/now/current.md` with no code change.
+  That is the intended design; the date is the part worth knowing in advance.
+- `document.title` is set when a command pushes a URL, and restored by neither
+  `clear()` nor `popstate` — the tab can name output that is no longer on
+  screen. `src/terminal/shell.ts`.

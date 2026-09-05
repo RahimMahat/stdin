@@ -492,9 +492,25 @@ check(
   'the PS1 is not what the page is called',
 )
 
-// It is a semantic claim, not a visual one — the line has to go on reading as
-// shell output. Without the reset a browser gives it 2em bold and a margin.
-check('the heading gives up every default a browser would give it', cssNorm.includes('h1.typed{font:inherit;margin:0'))
+/*
+ * It is a semantic claim, not a visual one — the line has to go on reading as
+ * shell output. Without the reset a browser gives it 2em bold and a margin.
+ *
+ * Matched as a parsed rule rather than as a literal, because the minifier is
+ * free to group these selectors with any others sharing the declaration, and
+ * the claim under test is that the reset reaches both — not how it was
+ * written down.
+ */
+const headingReset = cssNorm.match(/(?:^|})([^{}]*h1\.typed[^{}]*)\{([^}]*)\}/)
+check(
+  'the heading gives up every default a browser would give it',
+  Boolean(headingReset) &&
+    headingReset[1].includes('h1.typed') &&
+    headingReset[1].includes('h1.line') &&
+    headingReset[2].includes('font:inherit') &&
+    headingReset[2].includes('margin:0'),
+  headingReset ? `${headingReset[1]}{${headingReset[2]}}` : 'no rule resets h1.typed',
+)
 
 // And the session must not invent a second one: the echo the shell writes for
 // each command it runs is a span, so a long session stays single-headed.
@@ -506,6 +522,55 @@ check(
   doc.querySelectorAll('h1').length === 1,
   `${doc.querySelectorAll('h1').length} after running a command`,
 )
+
+/* ---------------------------------------------------------------- */
+/* the 404                                                           */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Without a top-level 404.html, Cloudflare Pages answers a missing route with
+ * `200` and a bare host page. That is invisible in development — the dev
+ * server has its own — and it fails in both directions at once: a crawler
+ * indexes a page that says nothing, and a reader who dropped a character gets
+ * a dead end.
+ *
+ * Verified by content rather than by status code, for the reason in CLAUDE.md:
+ * Pages returns 200 with an HTML body for things that are not there, so a
+ * status check reports success for a file that was never deployed.
+ */
+const notFound = builtPages.includes('404.html') ? await readFile('dist/404.html', 'utf8') : ''
+check('dist ships a 404 page', notFound.length > 0, 'Pages serves a top-level 404.html and nothing else')
+
+const notFoundHeading = headings.find(([f]) => f === '404.html')
+check(
+  'the 404 is headed by what went wrong',
+  notFoundHeading?.[1][0] === '404 — no such file or directory',
+  notFoundHeading?.[1].join(' | ') ?? 'no heading',
+)
+
+// It stands in for every missing path, so it cannot name the one that was
+// asked for — and must not print a prompt suggesting anybody typed anything.
+check(
+  'the 404 claims no command was typed',
+  !notFound.includes('class="typed"'),
+  'one static file answers every missing path; it cannot echo one of them',
+)
+
+const waysOut = ['/whoami', '/ls', '/skills', '/git', '/now', '/contact'].filter(
+  (href) => !notFound.includes(`href="${href}"`),
+)
+check('the 404 is a way back in, not a dead end', waysOut.length === 0, `missing: ${waysOut.join(', ')}`)
+
+check('the 404 is kept out of the index', /<meta name="robots" content="noindex"/.test(notFound))
+
+// The inverse is the one that would actually hurt: noindex is a single
+// attribute away from deindexing the whole site, and nothing else would notice.
+const noindexed = []
+for (const f of builtPages) {
+  if (String(f) === '404.html') continue
+  if ((await readFile(`dist/${f}`, 'utf8')).includes('name="robots"')) noindexed.push(String(f))
+}
+check('and it is the only page that is', noindexed.length === 0, noindexed.join(', '))
 
 /* ---------------------------------------------------------------- */
 /* the favicon set                                                   */
