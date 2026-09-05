@@ -13,21 +13,34 @@ gets its own branch, is tested from that branch, and reaches `main` only through
 a pull request.
 
 ```bash
-git checkout -b fix/404-page      # prefix matches the commit type: feat|fix|docs|build|chore
+git checkout -b fix/broken-chip   # prefix matches the commit type: feat|fix|docs|build|chore
 # ... work, commit ...
-git push -u origin fix/404-page
+npm test                          # must pass before the PR is opened
+git push -u origin fix/broken-chip
+gh pr create --fill
 ```
 
-Then open the PR at:
-`https://github.com/RahimMahat/stdin/compare/main...<branch>?expand=1`
-(`gh` is not installed on this machine, so PRs are opened in the browser.)
+`gh` is installed and authenticated here. An earlier revision of this file said
+it was not and sent you to the browser compare URL instead — true when it was
+written, stale since, and it cost a round trip. **Check `gh --version` before
+believing either claim.** If it is genuinely absent, the fallback is
+`https://github.com/RahimMahat/stdin/compare/main...<branch>?expand=1`.
+
+**Open pull requests; never merge them.** Creating, editing, reading and
+checking status are all fine. Merging is not, without exception — `main`
+auto-deploys to production, so the merge is where review actually happens.
+Hand over the link and say it is waiting on a merge.
+
+**Stacked branches.** When a change depends on one that has not landed yet,
+branch off that one and pass `--base <parent-branch>` to `gh pr create`, so the
+PR shows only its own diff instead of repeating its parent's commits. GitHub
+retargets each child to `main` as its parent merges; the merge order is the
+stack order, and it needs saying out loud when handing the links over.
 
 Cloudflare Pages builds **every branch**, so pushing gives you a preview URL to
 test before merging. Cloudflare replaces `/` with `-` in the alias, so
-`fix/404-page` is served at `fix-404-page.rahim-stdin.pages.dev`. Merging the PR
-to `main` triggers the production deploy.
-
-`npm test` must pass before a PR is opened.
+`fix/broken-chip` is served at `fix-broken-chip.rahim-stdin.pages.dev`. Merging
+the PR to `main` triggers the production deploy.
 
 ## Commands
 
