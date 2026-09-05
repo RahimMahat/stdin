@@ -90,6 +90,12 @@ body {
 .ps1 { color: var(--accent); white-space: nowrap; }
 .typed { color: var(--ink); }
 
+/* The echoed command is the page's heading — see Shell.astro. That is a
+   semantic claim, not a visual one: it has to keep reading as a line of shell
+   output, so the h1 gives up every default a browser would give it. `font`
+   resets size, weight, family and line-height in one declaration. */
+h1.typed { font: inherit; margin: 0; }
+
 .caret {
   display: inline-block;
   width: 8px;

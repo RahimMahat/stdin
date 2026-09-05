@@ -93,6 +93,22 @@ to be stated: the name is an `<h1>` in the serif at display size, and the six
 commands are a grid of destinations rather than a run of inline chips (the
 `grid` flag on the `cmds` node, honoured by both renderers).
 
+Every other page takes its `<h1>` from the command echoed after the prompt —
+`ls projects/` heads `/ls`, `cat projects/ingest` heads that project. The
+command is what the `<title>` says and the only thing on the page that names
+it, so the heading is text that was already there rather than a title invented
+to satisfy a validator. Only the typed half: the PS1 stays a span, because a
+screen reader announcing "rahim at stdin tilde percent ls projects" as the page
+title is worse than having no heading at all.
+
+There is a real trade here and it went the other way on purpose: a project page
+is headed by `cat projects/ingest` rather than by "Event-driven ingestion",
+which is the string a crawler would rather have. Putting the title in the `h1`
+would mean either inventing a heading nobody sees or adding a node type to the
+AST that both renderers would then have to honour — and the live shell would
+inject it into a page that already has an `h1`. The project's real name is the
+accent line directly beneath, one row down.
+
 Hovering the name runs `src/effects/matrix-name.ts` — a cmatrix scramble
 localised to the characters under the pointer. Three things constrain it, and
 each is load-bearing:
@@ -209,11 +225,8 @@ being the whole CV), 2.4 KB CSS, 8.8 KB for the shell, and 4.4 KB for
 `/site.json` — the last two only for visitors whose browsers run JavaScript, and
 the payload only on idle.
 
-Known defects, both real and both unfixed:
+Known defects, real and unfixed:
 
-- **Every page except `/` renders zero headings.** No `<h1>` on `/help`, `/ls`,
-  `/resume` or any project page. Screen readers navigate by heading and there is
-  nothing to navigate; it costs SEO too.
 - **On `/`, the crumbs repeat the command grid** immediately below it — the same
   destinations twice in a row.
 

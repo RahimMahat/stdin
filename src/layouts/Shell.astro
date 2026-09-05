@@ -122,10 +122,19 @@ const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') ||
         Without one it is scene-setting for visitors with no live prompt, and
         the shell hides it on mount — two prompts, one of them inert, reads as a
         broken input rather than as decoration.
+
+        The echoed command is the page's <h1>. On this site the command *is* the
+        page's identity — it is what the <title> says and the only thing on the
+        page that names it — so the heading is text that was already there
+        rather than a second title invented to satisfy a validator. Only the
+        typed half: the PS1 stays a span, because a screen reader announcing
+        "rahim at stdin tilde percent ls projects" as the heading is worse than
+        having none. The landing page carries its own <h1> in the masthead and
+        passes no command, so no page ever has two.
       -->
       <div class={command ? 'prompt-line' : 'prompt-line ghost'} aria-hidden={command ? undefined : 'true'}>
         <span class="ps1">rahim@stdin ~ %</span>
-        {command && <span class="typed">{command}</span>}
+        {command && <h1 class="typed">{command}</h1>}
         {caret && <span class="caret"></span>}
       </div>
 
