@@ -17,9 +17,20 @@ interface Props {
    * repeat what the page already is, and the grid is the better of the two.
    */
   crumbs?: boolean
+  /**
+   * An error line that is also the page's `<h1>`.
+   *
+   * Only /404 uses this. Every other page is headed by the command it echoes,
+   * and a page reached by mistyping a URL has no command to echo — nothing was
+   * typed, so printing a prompt with an error after it would be a lie about
+   * what happened.
+   */
+  error?: string
+  /** `noindex` on pages that are real files but should not be in the index. */
+  robots?: string
 }
 
-const { title, description, command, caret = false, crumbs = true } = Astro.props
+const { title, description, command, caret = false, crumbs = true, error, robots } = Astro.props
 const full = title === 'stdin' ? 'rahim mahat — stdin' : `${title} — rahim mahat`
 
 /**
@@ -40,6 +51,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') ||
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{full}</title>
     <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={full} />
     <meta property="og:description" content={description} />
@@ -137,6 +149,13 @@ const canonical = new URL(Astro.url.pathname.replace(/(?:index)?\.html$/, '') ||
         {command && <h1 class="typed">{command}</h1>}
         {caret && <span class="caret"></span>}
       </div>
+
+      <!--
+        /404 only. It sits where the first line of output would sit and is
+        styled as one, because that is what it is — the difference is that a
+        page with no command to echo has nothing else that can carry its <h1>.
+      -->
+      {error && <h1 class="line o-fail">{error}</h1>}
 
       <div class="out" data-href={Astro.url.pathname}>
         <slot />

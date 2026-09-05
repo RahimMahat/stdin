@@ -94,7 +94,10 @@ body {
    semantic claim, not a visual one: it has to keep reading as a line of shell
    output, so the h1 gives up every default a browser would give it. `font`
    resets size, weight, family and line-height in one declaration. */
-h1.typed { font: inherit; margin: 0; }
+/* .typed on every page that echoes a command, .line on /404, which has none to
+   echo and heads itself with its error instead. Both have to go on reading as
+   lines the shell printed. */
+h1.typed, h1.line { font: inherit; margin: 0; }
 
 .caret {
   display: inline-block;

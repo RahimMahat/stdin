@@ -1,0 +1,53 @@
+---
+import Shell from '../layouts/Shell.astro'
+import { loadSite } from '../data/site'
+import { renderStatic } from '../render/static'
+import { blank, cmds, line } from '../render/ast'
+
+/**
+ * The page a mistyped URL lands on.
+ *
+ * Without this file Cloudflare Pages answers a missing route with `200` and a
+ * bare host page — a soft 404, which is worse than a hard one in both
+ * directions: a crawler indexes a page that says nothing, and a reader who
+ * dropped a character gets a dead end with no way back into the site.
+ * A top-level 404.html is the one thing Pages looks for, and it serves it with
+ * an actual 404 status.
+ *
+ * It answers the way the shell answers an unknown command — report, then offer
+ * the nearest real things — because a visitor who mistyped a URL and a visitor
+ * who mistyped a command have made the same mistake and want the same thing.
+ * What it cannot do is name what they asked for: this is one static file that
+ * stands in for every missing path, so it says what did not resolve rather
+ * than pretending to echo a command nobody typed.
+ */
+const data = await loadSite()
+
+const out = renderStatic([
+  blank(),
+  line('that path does not resolve. these do:', 'dim'),
+  blank(),
+  cmds(
+    [
+      { name: 'whoami', label: 'the short version' },
+      { name: 'ls projects/', label: 'what he has built' },
+      { name: 'skills --tree', label: 'the stack, by pipeline stage' },
+      { name: 'git log --career', label: 'how he got here' },
+      { name: 'now', label: 'what he is doing this month' },
+      { name: 'contact', label: 'reach him' },
+    ],
+    true,
+  ),
+  blank(),
+  line('`help` lists every command. every one of them is also a real URL.', 'dim'),
+])
+---
+
+<Shell
+  title="404"
+  description={`No such path on ${data.profile.name}'s site. Every command is a real URL — these are the ones that resolve.`}
+  error="404 — no such file or directory"
+  robots="noindex"
+>
+  <Fragment set:html={out} />
+</Shell>
