@@ -445,6 +445,69 @@ check('the root canonical is the bare origin, not /index',
   rootCanonical ? rootCanonical[1] : 'missing')
 
 /* ---------------------------------------------------------------- */
+/* headings                                                          */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Twelve of the thirteen pages used to render zero <h1> elements, including
+ * /resume — the page the skip link goes to. Someone navigating by heading
+ * arrived at a CV with nothing to navigate by, and it was invisible in every
+ * check that only looked at whether a page rendered.
+ *
+ * The heading is the echoed command, so it is text that was already on the
+ * page rather than a title invented to satisfy a validator. Three ways that
+ * can regress: the h1 disappears, a second one appears, or the PS1 gets
+ * swallowed into it.
+ */
+const headings = []
+for (const f of builtPages) {
+  // Astro ships HTML comments, and the ones in Shell.astro discuss the heading
+  // by name. Strip them first or the source comment counts as a heading.
+  const html = (await readFile(`dist/${f}`, 'utf8')).replace(/<!--[\s\S]*?-->/g, '')
+  headings.push([String(f), [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map((m) => m[1])])
+}
+
+const headless = headings.filter(([, hs]) => hs.length === 0)
+check('every built page declares an h1', headless.length === 0, headless.map(([f]) => f).join(', '))
+
+const doubled = headings.filter(([, hs]) => hs.length > 1)
+check('and never more than one', doubled.length === 0, doubled.map(([f]) => f).join(', '))
+
+const lsHeading = headings.find(([f]) => f === 'ls.html')
+check('a command page is headed by its command', lsHeading?.[1][0] === 'ls projects/', lsHeading?.[1].join(' | '))
+
+const projectHeading = headings.find(([f]) => String(f).endsWith('ingest.html'))
+check('a project page too', projectHeading?.[1][0] === 'cat projects/ingest', projectHeading?.[1].join(' | '))
+
+const landingHeading = headings.find(([f]) => f === 'index.html')
+check(
+  'the landing page keeps the name as its heading',
+  landingHeading?.[1][0] === 'Rahim Mahat',
+  landingHeading?.[1].join(' | '),
+)
+
+check(
+  'the prompt is never read as the heading',
+  headings.every(([, hs]) => hs.every((h) => !h.includes('rahim@stdin'))),
+  'the PS1 is not what the page is called',
+)
+
+// It is a semantic claim, not a visual one — the line has to go on reading as
+// shell output. Without the reset a browser gives it 2em bold and a margin.
+check('the heading gives up every default a browser would give it', cssNorm.includes('h1.typed{font:inherit;margin:0'))
+
+// And the session must not invent a second one: the echo the shell writes for
+// each command it runs is a span, so a long session stays single-headed.
+type(input, 'skills --tree')
+submit(form)
+await settle()
+check(
+  'a command run in the session adds no second heading',
+  doc.querySelectorAll('h1').length === 1,
+  `${doc.querySelectorAll('h1').length} after running a command`,
+)
+
+/* ---------------------------------------------------------------- */
 /* the favicon set                                                   */
 /* ---------------------------------------------------------------- */
 

@@ -144,6 +144,4 @@ match their density rather than adding narration.
 
 - No `404.astro`. Missing URLs return **`200`** with a bare Cloudflare page —
   a soft 404 that crawlers will index, and a dead end for anyone who mistypes.
-- No `<h1>` on any page except `/`. Twelve pages give screen readers nothing to
-  navigate by.
 - On `/`, the crumbs duplicate the command grid directly below them.
