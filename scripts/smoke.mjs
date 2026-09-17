@@ -44,7 +44,8 @@ const built = await esbuild.build({
       import { rain } from './src/effects/rain'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, find, rain }
+      import { bootSequence } from './src/effects/boot'
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, find, rain, bootSequence }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -985,6 +986,134 @@ check(
     wet.host.querySelectorAll('.rain[data-lit="done"]').length === 1,
 )
 wet.w.close()
+
+/* ---------------------------------------------------------------- */
+/* the boot log                                                      */
+/* ---------------------------------------------------------------- */
+
+/**
+ * A fake boot sequence is theatre. These check it is not one: every number
+ * printed has to match the thing it claims to have counted, or the line is a
+ * prop and should not be on the site at all.
+ */
+/**
+ * Read out of the build rather than out of the live document: `clear` empties
+ * the block this lives in, and a guard that reads a DOM the session has been
+ * driving is a guard that passes on an empty string.
+ */
+const indexHtml = await readFile('dist/index.html', 'utf8')
+const bootOpen = indexHtml.indexOf('<script id="boot-log"')
+const bootGt = bootOpen < 0 ? -1 : indexHtml.indexOf('>', bootOpen)
+const bootEnd = bootGt < 0 ? -1 : indexHtml.indexOf('</script>', bootGt)
+check('the landing page embeds a boot log', bootOpen >= 0 && bootEnd > bootGt)
+
+const bootLines = bootEnd > 0 ? JSON.parse(indexHtml.slice(bootGt + 1, bootEnd)) : []
+const bootText = bootLines.join(' | ')
+check('the boot log is not empty', bootLines.length > 0, bootText)
+
+check(
+  'no other page carries it',
+  !(await readFile('dist/whoami.html', 'utf8')).includes('boot-log'),
+)
+
+check(
+  'no visitor without javascript is shown a machine booting',
+  !indexHtml.includes('class="boot'),
+)
+
+check(
+  'the boot log counts the projects that actually loaded',
+  bootText.includes(`${data0.projects.length} projects`),
+  bootText,
+)
+check(
+  'and the roles',
+  bootText.includes(`${data0.roles.length} roles`),
+  bootText,
+)
+
+/**
+ * The date is the day `now/` stops satisfying the staleness rule and the
+ * build starts failing — the one line here that is a promise about the
+ * future rather than a report about the present.
+ */
+const expiry = new Date(data0.now.updated.getTime() + 90 * 86_400_000)
+const expiryYmd = expiry.toISOString().slice(0, 10)
+check(
+  'the boot log names the day now/ expires',
+  bootText.includes(expiryYmd),
+  `expected ${expiryYmd} in: ${bootText}`,
+)
+
+const pkgVersion = JSON.parse(await readFile('package.json', 'utf8')).version
+check(
+  'the version is the one in package.json',
+  bootText.includes(`v${pkgVersion}`),
+  `expected v${pkgVersion} in: ${bootText}`,
+)
+
+/* --- behaviour --- */
+
+async function bootRun({ reduced = false } = {}) {
+  const d4 = new JSDOM(await readFile('dist/index.html', 'utf8'), {
+    url: 'https://rahim-stdin.pages.dev/',
+    runScripts: 'outside-only',
+    pretendToBeVisual: true,
+  })
+  const w = d4.window
+  w.matchMedia = () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} })
+  w.eval(code)
+  return w
+}
+
+const printed = (w) => w.document.querySelectorAll('.boot .boot-line').length
+
+const first = await bootRun()
+first.__t.bootSequence()
+
+/**
+ * It must not hold the prompt hostage: the call returns with the block
+ * started and unfinished, the same bargain terminal/stream.ts makes.
+ */
+const immediately = printed(first)
+await new Promise((r) => first.setTimeout(r, 900))
+const eventually = printed(first)
+
+check('the boot log plays on a first visit', eventually === bootLines.length, `${eventually} of ${bootLines.length}`)
+check(
+  'it prints over time rather than blocking on its own animation',
+  immediately < eventually,
+  `${immediately} -> ${eventually}`,
+)
+
+// Same window, so the flag it just wrote is still there.
+first.document.querySelector('.boot')?.remove()
+first.__t.bootSequence()
+check(
+  'it does not play again for someone who has already seen it',
+  printed(first) === 0,
+  `${printed(first)} lines on a repeat visit`,
+)
+first.close()
+
+const stillBoot = await bootRun({ reduced: true })
+stillBoot.__t.bootSequence()
+check(
+  'refused motion prints it whole instead of stepping',
+  printed(stillBoot) === bootLines.length,
+  `${printed(stillBoot)} of ${bootLines.length}`,
+)
+stillBoot.close()
+
+const impatient = await bootRun()
+impatient.__t.bootSequence()
+impatient.document.dispatchEvent(new impatient.KeyboardEvent('keydown', { key: 'a', bubbles: true }))
+check(
+  'a keypress lands the rest at once',
+  printed(impatient) === bootLines.length,
+  `${printed(impatient)} of ${bootLines.length}`,
+)
+impatient.close()
 
 check('nothing threw during the session', thrown.length === 0, thrown.map((e) => e.stack ?? String(e)).join('\n    '))
 
