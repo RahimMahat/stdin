@@ -14,7 +14,7 @@ export function makeHelp(all: () => Command[]): Command {
     summary: 'list every command',
     page: true,
     run(_ctx: Ctx): Out[] {
-      const commands = all()
+      const commands = all().filter((c) => !c.hidden)
       const rows: Cell[][] = commands.map((c) => [
         // Shows the usage line, runs the part without placeholders in it.
         { text: canonical(c), cmd: runnable(c) },

@@ -83,6 +83,13 @@ export interface Command {
    * generated from the projects collection instead.
    */
   page: boolean
+  /**
+   * Kept out of `help` and out of any URL, but left in the candidate list —
+   * completion and the did-you-mean fallback read one list on purpose, and
+   * a command the prompt completes but the shell disowns is worse than a
+   * secret nobody finds.
+   */
+  hidden?: boolean
   /** Default argv used when rendering the static page, e.g. ["projects/"]. */
   pageArgs?: { args?: string[]; flags?: Record<string, string | boolean> }
   run(ctx: Ctx): Out[]

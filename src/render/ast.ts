@@ -63,6 +63,12 @@ export type Out =
    * inline chips do not.
    */
   | { t: 'cmds'; items: { name: string; label?: string }[]; grid?: boolean }
+  /**
+   * Decorative glyph rain. One string per column, top to bottom, generated
+   * once by the command so both renderers are handed the same grid rather
+   * than each rolling their own.
+   */
+  | { t: 'rain'; cols: string[] }
   | { t: 'graph'; def: GraphDef }
 
 /* ------------------------------------------------------------------ */
@@ -78,6 +84,7 @@ export const kv = (pairs: [string, string][]): Out => ({ t: 'kv', pairs })
 export const table = (cols: string[], rows: Cell[][]): Out => ({ t: 'table', cols, rows })
 export const tree = (root: TreeNode): Out => ({ t: 'tree', root })
 export const log = (entries: CommitEntry[]): Out => ({ t: 'log', entries })
+export const rain = (cols: string[]): Out => ({ t: 'rain', cols })
 export const cmds = (items: { name: string; label?: string }[], grid = false): Out => ({
   t: 'cmds',
   items,

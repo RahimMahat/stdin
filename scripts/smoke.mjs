@@ -40,9 +40,10 @@ const built = await esbuild.build({
       import { renderStatic } from './src/render/static'
       import { renderLive } from './src/render/live'
       import { suggest } from './src/terminal/complete'
+      import { find } from './src/commands'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor }
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, find }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -866,6 +867,56 @@ check(
   mismatches.join('\n    '),
 )
 
+/* ---------------------------------------------------------------- */
+/* cmatrix — hidden, but not so hidden it cannot be reached          */
+/* ---------------------------------------------------------------- */
+
+/**
+ * The bargain: absent from `help` and from every URL, but left in the one
+ * candidate list that completion and did-you-mean both read. A secret the
+ * prompt will not complete is a secret nobody finds; a secret `help` prints
+ * is not one. The parity loop already runs it, because it is in the registry
+ * and takes no arguments.
+ */
+const cmat = T.find('cmatrix')
+check('cmatrix is registered', !!cmat)
+check('cmatrix has no page of its own', cmat?.page === false, `page: ${cmat?.page}`)
+
+const helpText = doc.createElement('div')
+helpText.innerHTML = T.renderStatic(T.run('help', data0))
+check(
+  'help does not list the hidden command',
+  !helpText.textContent.includes('cmatrix'),
+)
+
+check(
+  'the prompt still completes it once you are typing toward it',
+  T.suggest('cmat', data0).some((s) => s.value === 'cmatrix'),
+  T.suggest('cmat', data0).map((s) => s.value).join(' | '),
+)
+
+const rainHost = doc.createElement('div')
+rainHost.innerHTML = T.renderStatic(T.run('cmatrix', data0))
+const rainEl = rainHost.querySelector('.rain')
+check('cmatrix prints a rain block', !!rainEl)
+check(
+  'the rain is hidden from assistive tech',
+  rainEl?.getAttribute('aria-hidden') === 'true',
+)
+check(
+  'every column carries glyphs rather than an empty box',
+  [...rainHost.querySelectorAll('.rain-col')].every((c) => c.textContent.trim().length > 0),
+)
+
+/**
+ * The grid is seeded, not rolled. Two renderers handed the same node must
+ * produce the same document, and Math.random() is the one way to make that
+ * quietly untrue — it would pass a single parity run and fail in a browser.
+ */
+check(
+  'the rain is seeded, not random',
+  JSON.stringify(T.run('cmatrix', data0)) === JSON.stringify(T.run('cmatrix', data0)),
+)
 check('nothing threw during the session', thrown.length === 0, thrown.map((e) => e.stack ?? String(e)).join('\n    '))
 
 /* ---------------------------------------------------------------- */
