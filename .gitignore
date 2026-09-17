@@ -32,3 +32,16 @@ npm-debug.log*
 # the repository private first and then `git add -f` them deliberately.
 profile.yml
 *.pdf
+
+# Agent scratch, ignored on purpose.
+#
+# graphify-out/ is a knowledge graph built from this repo for an assistant to
+# navigate — 700 KB of derived JSON and a standalone HTML viewer. It is a
+# rebuildable index of the source, not part of it, and it goes stale the moment
+# the code moves. Rebuild it with /graphify rather than versioning it.
+#
+# The .graphify_* files are pipeline temporaries that only survive a crashed
+# run, and *.stackdump is Git Bash debris on Windows.
+graphify-out/
+.graphify_*
+*.stackdump
