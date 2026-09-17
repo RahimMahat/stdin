@@ -18,6 +18,24 @@ throughput: "Around 50 of 300+ tables — the largest of them in the billions of
 latency: "Timeouts and concurrency pressure on the hardest-hit tables stopped; the common query reads one day instead of the full history"
 broke: "A snapshot went stale without saying so. The run had succeeded — the pre-processor resolved a latest date before the upstream load for that day had finished landing, so the snapshot was built on a partial day and published looking exactly like a good one. Analysts read it for more than it was worth, and nothing in the pipeline had an opinion about that."
 fixed: "The date a snapshot is built for is no longer whatever the calendar says: the pre-processor checks the upstream partition is complete before it resolves a watermark, and a run that cannot establish one fails loudly instead of publishing a thin table. Either Lambda failing raises an SNS topic to the data engineering list."
+pipeline:
+  nodes:
+    - { id: source, label: "source tables", note: "~50 of 300+", lane: 0, cmd: "cat projects/sap" }
+    - { id: pre, label: "pre-process", note: "latest date", lane: 1 }
+    - { id: ctas, label: "ctas lambda", note: "jinja", lane: 2 }
+    - { id: snapshot, label: "s3 snapshot", note: "parquet", lane: 3 }
+    - { id: sns, label: "sns alert", note: "the DE list", lane: 3 }
+    - { id: glue, label: "glue table", note: "terraform", lane: 4 }
+    - { id: athena, label: "athena", lane: 5 }
+    - { id: denodo, label: "denodo", lane: 5, cmd: "cat projects/warehouse" }
+  edges:
+    - { from: source, to: pre, label: "daily" }
+    - { from: pre, to: ctas, label: "on success" }
+    - { from: ctas, to: snapshot, label: "athena" }
+    - { from: ctas, to: sns, label: "on failure" }
+    - { from: snapshot, to: glue }
+    - { from: glue, to: athena }
+    - { from: glue, to: denodo }
 failed: false
 ---
 

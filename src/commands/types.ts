@@ -1,4 +1,4 @@
-import type { Out } from '../render/ast'
+import type { GraphDef, Out } from '../render/ast'
 
 export interface Profile {
   name: string
@@ -30,6 +30,8 @@ export interface Project {
   fixed: string
   failed: boolean
   repo?: string
+  /** The laid-out pipeline diagram, or absent. Built in data/pipeline.ts. */
+  pipeline?: GraphDef
   /** The write-up, as HTML. Resolved from markdown in data/site.ts. */
   body: string
   /** Byte length of the write-up as written, in markdown. Powers `ls` size. */

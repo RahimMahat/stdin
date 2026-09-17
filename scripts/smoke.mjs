@@ -42,7 +42,8 @@ const built = await esbuild.build({
       import { suggest } from './src/terminal/complete'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor }
+      import { layout, NODE_W, NODE_H, GAP_X } from './src/data/pipeline'
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, layout, NODE_W, NODE_H, GAP_X }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -310,6 +311,28 @@ await settle()
 check('chip click is intercepted', ev.defaultPrevented, `chip: ${chip?.dataset.cmd}`)
 check('chip click runs the command', doc.querySelectorAll('#stream .block').length === before + 1)
 
+/* --- a diagram node is a chip like any other --- */
+type(input, 'cat projects/sap')
+submit(form)
+await settle()
+
+const drawn = doc.querySelector('#stream .block:last-child .dag svg')
+check('the diagram reaches the live terminal', !!drawn)
+check(
+  'the diagram is drawn, not announced as unrendered',
+  !doc.querySelector('#stream .block:last-child .out')?.textContent?.includes('not yet rendered'),
+)
+
+const nodeChip = doc.querySelector('#stream .block:last-child .dag a[data-cmd]')
+const beforeNode = doc.querySelectorAll('#stream .block').length
+const nodeEv = new window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+nodeChip?.dispatchEvent(nodeEv)
+await settle()
+check(
+  'clicking a diagram node runs its command',
+  nodeEv.defaultPrevented && doc.querySelectorAll('#stream .block').length === beforeNode + 1,
+  `node: ${nodeChip?.dataset.cmd}`,
+)
 /* --- clear --- */
 type(input, 'clear')
 submit(form)
@@ -866,6 +889,126 @@ check(
   mismatches.join('\n    '),
 )
 
+/* ---------------------------------------------------------------- */
+/* pipeline diagrams                                                 */
+/* ---------------------------------------------------------------- */
+
+/**
+ * The parity loop above walks the registry, and the registry runs every
+ * command with no arguments — which means it never reaches a project page,
+ * and never reaches the one node type whose markup is too big to eyeball.
+ * These run the same comparison over `cat projects/<slug>`.
+ */
+const diagrams = data.projects.filter((p) => p.pipeline)
+check('projects draw their pipelines', diagrams.length > 0, `${diagrams.length} of ${data.projects.length}`)
+
+const pageDrift = []
+const unnamed = []
+const oversized = []
+const deadChips = []
+const commandNames = new Set(T.registry.map((c) => c.name))
+
+for (const p of diagrams) {
+  const nodes = T.run(`cat projects/${p.slug}`, data)
+
+  const staticSide = throughDom(T.renderStatic(nodes))
+  const liveHost = doc.createElement('div')
+  liveHost.append(...T.renderLive(nodes))
+  if (staticSide !== throughDom(liveHost.innerHTML)) pageDrift.push(p.slug)
+
+  const probe = doc.createElement('div')
+  probe.innerHTML = T.renderStatic(nodes)
+  const svg = probe.querySelector('.dag svg')
+
+  if (!svg) {
+    unnamed.push(`${p.slug}: no svg at all`)
+  } else if (!svg.querySelector('title')?.textContent?.trim()) {
+    unnamed.push(p.slug)
+  }
+
+  // Wider than this and the scroll container stops being a convenience.
+  if (p.pipeline.width > 1000) oversized.push(`${p.slug}: ${p.pipeline.width}px`)
+
+  for (const a of probe.querySelectorAll('.dag a[data-cmd]')) {
+    const name = a.dataset.cmd.split(' ')[0]
+    if (!commandNames.has(name)) deadChips.push(`${p.slug}: ${a.dataset.cmd}`)
+  }
+}
+
+check('every project page renders identically in both renderers', pageDrift.length === 0, pageDrift.join(', '))
+check('every diagram names itself for assistive tech', unnamed.length === 0, unnamed.join(', '))
+check('no diagram outgrows its container', oversized.length === 0, oversized.join(', '))
+check('every clickable node names a real command', deadChips.length === 0, deadChips.join(', '))
+
+/**
+ * Edges are routed, not drawn by hand, so the thing that goes wrong is an
+ * edge skipping a lane and running straight through whatever is parked in
+ * between. Nothing about that throws — it just produces a diagram that says
+ * something untrue about what connects to what.
+ */
+const overlap = (a1, a2, b1, b2) => Math.max(a1, a2) > b1 && Math.min(a1, a2) < b2
+const crossings = []
+
+for (const p of diagrams) {
+  const { nodes, edges } = p.pipeline
+  for (const e of edges) {
+    const f = nodes.find((x) => x.id === e.from)
+    const t = nodes.find((x) => x.id === e.to)
+    const x1 = f.x + T.NODE_W
+    const y1 = f.y + T.NODE_H / 2
+    const x2 = t.x
+    const y2 = t.y + T.NODE_H / 2
+    const mx = x2 - T.GAP_X / 2
+    const segs =
+      y1 === y2
+        ? [['h', x1, x2, y1]]
+        : [['h', x1, mx, y1], ['v', y1, y2, mx], ['h', mx, x2, y2]]
+
+    for (const b of nodes) {
+      if (b.id === f.id || b.id === t.id) continue
+      for (const [dir, a, z, at] of segs) {
+        const hit =
+          dir === 'h'
+            ? overlap(a, z, b.x, b.x + T.NODE_W) && b.y < at && at < b.y + T.NODE_H
+            : overlap(a, z, b.y, b.y + T.NODE_H) && b.x < at && at < b.x + T.NODE_W
+        if (hit) crossings.push(`${p.slug}: ${e.from} -> ${e.to} crosses ${b.id}`)
+      }
+    }
+  }
+}
+
+check('no edge is routed through a node', crossings.length === 0, crossings.join(', '))
+/**
+ * Layout is the only place that can reject a badly drawn pipeline, and it
+ * does it by throwing at build time. These prove it still does — a silent
+ * layout is a diagram that lies about what connects to what.
+ */
+const n = (id, lane) => ({ id, label: id, lane, status: 'ok' })
+const refuses = (spec) => {
+  try {
+    T.layout(spec, 'test')
+    return false
+  } catch {
+    return true
+  }
+}
+
+check(
+  'layout refuses an edge to a node that does not exist',
+  refuses({ nodes: [n('a', 0), n('b', 1)], edges: [{ from: 'a', to: 'nowhere' }] }),
+)
+check(
+  'layout refuses an edge that flows backwards',
+  refuses({ nodes: [n('a', 0), n('b', 1)], edges: [{ from: 'b', to: 'a' }] }),
+)
+check(
+  'layout refuses a node nothing connects to',
+  refuses({ nodes: [n('a', 0), n('b', 1), n('c', 1)], edges: [{ from: 'a', to: 'b' }] }),
+)
+check(
+  'layout refuses two nodes sharing an id',
+  refuses({ nodes: [n('a', 0), n('a', 1)], edges: [{ from: 'a', to: 'a' }] }),
+)
 check('nothing threw during the session', thrown.length === 0, thrown.map((e) => e.stack ?? String(e)).join('\n    '))
 
 /* ---------------------------------------------------------------- */

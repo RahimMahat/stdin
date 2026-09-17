@@ -31,6 +31,35 @@ const projects = defineCollection({
     // The one deliberate failure. Exactly one project may set this.
     failed: z.boolean().default(false),
     repo: z.string().url().optional(),
+    // The pipeline this project is. Lanes are authored, pixels are not —
+    // data/pipeline.ts resolves the geometry once, at build time, so that
+    // both renderers are handed the same diagram rather than each drawing
+    // their own. Optional: not every project is shaped like a flow.
+    pipeline: z
+      .object({
+        nodes: z
+          .array(
+            z.object({
+              id: z.string().regex(/^[a-z0-9-]+$/, 'node id must be kebab-case'),
+              label: z.string().max(14, 'a node label has to fit inside its box'),
+              note: z.string().max(14, 'a node note has to fit inside its box').optional(),
+              lane: z.number().int().min(0),
+              status: z.enum(['ok', 'fail', 'running']).default('ok'),
+              cmd: z.string().optional(),
+            }),
+          )
+          .min(2),
+        edges: z
+          .array(
+            z.object({
+              from: z.string(),
+              to: z.string(),
+              label: z.string().max(14, 'an edge label is a word, not a sentence').optional(),
+            }),
+          )
+          .min(1),
+      })
+      .optional(),
   }),
 })
 

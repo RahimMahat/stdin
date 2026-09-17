@@ -72,6 +72,17 @@ The last check in `smoke.mjs` ("every command renders identically in both
 renderers") is what holds this together. **If you add a node type to the AST,
 both renderers must handle it** or that check fails.
 
+The `graph` node is the one exception to writing markup twice. Its SVG is built
+once by `src/render/dag.ts`, and both renderers emit that same string — the
+static one as markup, the live one through `innerHTML`, the way `prose` already
+worked. Geometry is resolved earlier still, in `src/data/pipeline.ts`, because a
+renderer that computes its own coordinates is a renderer that can disagree.
+Content authors lanes; nothing downstream authors pixels.
+
+Note that the registry parity loop runs every command with **no arguments**, so
+it never reaches `cat projects/<slug>`. Project pages get their own parity check
+for exactly that reason.
+
 Markdown is resolved to HTML in the content layer (`src/data/site.ts`) at build
 time, never in the browser — that is why the live renderer ships no parser.
 
@@ -111,7 +122,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 126, in
+Correctness lives in build-time checks rather than in review. Currently 139, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -124,7 +135,13 @@ is printed by `npm test`; update it here when it moves:
 - `404.html` ships, is `noindex`, and is the only page that is
 - the favicon set ships and every page references it
 - the terminal driven in real jsdom, including the masthead effect
-- renderer parity
+- renderer parity, for the registry and again for every project page
+- a diagram node clicked in the live terminal runs its command instead of navigating
+- pipeline diagrams: laid out, not hand-placed — layout refuses a dangling edge,
+  a backwards one, an orphan node or a duplicate id, and a guard proves no edge
+  is routed through a box
+- every diagram names itself for assistive tech and every clickable node names a
+  command that exists
 
 **When you fix a bug that a test could have caught, add the test in the same
 commit.** That is the established pattern here and the reason the suite is this

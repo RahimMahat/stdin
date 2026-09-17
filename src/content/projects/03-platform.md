@@ -14,6 +14,21 @@ throughput: "Every environment defined in code — no console-assembled infrastr
 latency: "40% less manual effort per deployment"
 broke: "The pipelines were code and the infrastructure under them was not. Environments were assembled by hand, so they drifted, so \"works in dev\" stopped carrying information. The only real documentation of how an environment got built was whoever had built one last."
 fixed: "Moved account-level infrastructure into Terraform and application-coupled resources into AWS CDK, behind a shared library of modules so that a correctly configured resource is the default you get rather than something you have to remember. Plan runs on every pull request, apply on merge — roughly 40% less manual effort per deployment, and every change seen by a second person."
+pipeline:
+  nodes:
+    - { id: pr, label: "pull request", lane: 0 }
+    - { id: plan, label: "terraform plan", lane: 1 }
+    - { id: synth, label: "cdk synth", lane: 1 }
+    - { id: review, label: "review", note: "second pair", lane: 2 }
+    - { id: apply, label: "apply", note: "on merge", lane: 3 }
+    - { id: envs, label: "environments", note: "no drift", lane: 4 }
+  edges:
+    - { from: pr, to: plan }
+    - { from: pr, to: synth }
+    - { from: plan, to: review }
+    - { from: synth, to: review }
+    - { from: review, to: apply }
+    - { from: apply, to: envs }
 failed: false
 ---
 

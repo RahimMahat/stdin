@@ -2,6 +2,7 @@ import { getCollection } from 'astro:content'
 import { marked } from 'marked'
 import type { NowData, Project, Role, SiteData } from '../commands/types'
 import { profile as rawProfile } from './profile'
+import { layout } from './pipeline'
 
 /**
  * Loads and normalises every collection into the plain shapes the command layer
@@ -33,6 +34,9 @@ export async function loadSite(): Promise<SiteData> {
       body: md(e.body ?? ''),
       broke: md(e.data.broke),
       fixed: md(e.data.fixed),
+      // Throws on a dangling edge or a backwards one, which makes a bad
+      // diagram a failed build rather than a drawing nobody can read.
+      pipeline: e.data.pipeline ? layout(e.data.pipeline, `projects/${e.data.slug}`) : undefined,
     }))
     .sort((a, b) => a.order - b.order)
 

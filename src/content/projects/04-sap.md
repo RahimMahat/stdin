@@ -18,6 +18,22 @@ throughput: "400+ AppFlow flows across five schedule tiers — every twenty minu
 latency: "No flow created by hand: adding a SAP service is a config entry, not a console session"
 broke: "A controlled-deployment feature meant to route flows to the right environment by SAP client id deleted a production flow instead. It was a GB-a-day source, the pipeline reported nothing wrong, and for two to three days everything downstream looked healthy. The failure surfaced as business users noticing their numbers had stopped moving — not as an alert."
 fixed: "Gave the flows a filtered read so a gap can be closed after the fact: re-query from a last_updated watermark and backfill, which is how the missing days were recovered. Environment routing now asserts that a client id belongs to the environment it is being applied to, and a flow missing from config is reported rather than deleted implicitly."
+pipeline:
+  nodes:
+    - { id: sap, label: "SAP services", lane: 0 }
+    - { id: appflow, label: "AppFlow", note: "400+ flows", lane: 1 }
+    - { id: raw, label: "s3 raw", note: "archived ~12mo", lane: 2 }
+    - { id: glue, label: "glue job", note: "5 tiers", lane: 3 }
+    - { id: staging, label: "s3 staging", note: "parquet", lane: 4 }
+    - { id: athena, label: "athena", lane: 5 }
+    - { id: denodo, label: "denodo", lane: 5, cmd: "cat projects/warehouse" }
+  edges:
+    - { from: sap, to: appflow }
+    - { from: appflow, to: raw }
+    - { from: raw, to: glue, label: "scheduled" }
+    - { from: glue, to: staging }
+    - { from: staging, to: athena }
+    - { from: staging, to: denodo }
 failed: false
 ---
 

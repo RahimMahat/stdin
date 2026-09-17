@@ -1,4 +1,6 @@
 import { hrefFor } from '../commands'
+import { dagSvg } from './dag'
+import { esc } from './esc'
 import type { Cell, Out, Tone, TreeNode } from './ast'
 
 /**
@@ -9,9 +11,6 @@ import type { Cell, Out, Tone, TreeNode } from './ast'
  * Keep the markup here dumb and semantic — no wrapper divs that only exist for
  * styling, because the live renderer has to reproduce them exactly.
  */
-
-const esc = (s: string): string =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 const tone = (t?: Tone): string => (t ? ` o-${t}` : '')
 
@@ -105,9 +104,7 @@ function node(n: Out): string {
         .join('')}</div>`
 
     case 'graph':
-      // Phase 3. Until then a command may declare a graph and it renders as a
-      // pointer rather than silently vanishing.
-      return `<div class="line o-dim">[graph: ${n.def.nodes.length} nodes, not yet rendered]</div>`
+      return dagSvg(n.def)
   }
 }
 

@@ -1,4 +1,4 @@
-import { blank, cmds, kv, line, prose, rule, type Out } from '../render/ast'
+import { blank, cmds, graph, kv, line, prose, rule, type Out } from '../render/ast'
 import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
 import type { Command, Ctx, Project, SiteData } from './types'
@@ -19,6 +19,9 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
       ...(p.repo ? ([['repo', p.repo]] as [string, string][]) : []),
     ]),
     blank(),
+    // The diagram sits above the write-up on purpose: the shape of the thing
+    // first, then the argument about it. Projects without one lose nothing.
+    ...(p.pipeline ? [graph(p.pipeline), blank()] : []),
     prose(p.body),
     rule(),
     line('what broke', 'accent'),

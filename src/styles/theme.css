@@ -200,6 +200,41 @@ td:last-child, th:last-child { padding-right: 0; }
 .commit .subject { grid-column: 2; color: var(--ink); }
 .commit .body { grid-column: 2; color: var(--dim); }
 
+
+/* ---- pipeline diagrams ----
+ *
+ * The geometry arrives resolved from data/pipeline.ts; this only decides what
+ * the shapes look like. No colour is invented here — a node is surface on rule,
+ * a failed one borrows --fail, and anything clickable borrows --accent, exactly
+ * like every other actionable thing on the page.
+ *
+ * The container scrolls rather than the diagram scaling, which is the same
+ * bargain .tbl makes: a 7px label nobody can read is worse than a swipe.
+ */
+.dag { overflow-x: auto; margin: 4px 0 0; }
+.dag svg { display: block; font-family: var(--mono); }
+
+.dag-node rect {
+  fill: var(--surface);
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.dag-label { fill: var(--ink); font-size: 12px; text-anchor: middle; }
+.dag-note { fill: var(--dim); font-size: 10px; text-anchor: middle; }
+
+.dag-edge { fill: none; stroke: var(--rule); stroke-width: 1.5; }
+.dag marker path { fill: var(--faint); }
+.dag-edge-label { fill: var(--faint); font-size: 10px; text-anchor: middle; }
+
+.dag-fail rect { stroke: var(--fail); }
+.dag-fail .dag-label { fill: var(--fail); }
+.dag-running rect { stroke: var(--accent); }
+
+a.dag-node { cursor: pointer; }
+a.dag-node rect { stroke: color-mix(in oklab, var(--accent) 45%, var(--rule)); }
+a.dag-node .dag-label { fill: var(--accent); }
+a.dag-node:hover rect { stroke: var(--accent); }
+
 /* ---- command chips: clickable everything ---- */
 .cmds { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 a.chip {

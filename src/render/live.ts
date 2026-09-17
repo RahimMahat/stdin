@@ -1,4 +1,5 @@
 import { hrefFor } from '../commands'
+import { dagSvg } from './dag'
 import type { Cell, Out, Tone, TreeNode } from './ast'
 
 /**
@@ -11,8 +12,8 @@ import type { Cell, Out, Tone, TreeNode } from './ast'
  * change markup in one, change it in the other.
  *
  * Everything here builds nodes through the DOM API and assigns text through
- * `textContent`. The single exception is `prose`, which is trusted HTML that
- * this repo generated at build time from its own content files.
+ * `textContent`. The exceptions are `prose` and `graph`, both of which are
+ * trusted markup this repo generated at build time from its own content.
  */
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -156,8 +157,15 @@ export function renderNode(n: Out): HTMLElement {
       return wrap
     }
 
-    case 'graph':
-      return el('div', 'line o-dim', `[graph: ${n.def.nodes.length} nodes, not yet rendered]`)
+    case 'graph': {
+      // The diagram is one SVG string built by render/dag.ts from geometry
+      // that was resolved at build time, and the static renderer emits that
+      // very same string. Building it twice through the DOM API would be the
+      // one place in this file where the two sides could silently drift.
+      const host = el('div')
+      host.innerHTML = dagSvg(n.def)
+      return host.firstElementChild as HTMLElement
+    }
   }
 }
 

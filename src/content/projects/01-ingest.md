@@ -16,6 +16,20 @@ throughput: "Several upstream systems on one contract — batch through Glue, ev
 latency: "50% lower end-to-end processing time than the pipeline it replaced"
 broke: "The real-time path failed in ways the batch path never did. A downstream service being slow or briefly unavailable did not just delay a message — it left records half-applied, so the failure showed up later as inconsistent data rather than as an error anyone was paged for."
 fixed: "Built a real explicit error-handling layer across the streaming path: retries with backoff, dead-letter queues on the SQS consumers, and failures surfaced as failures instead of as silence. System failures and data inconsistencies dropped by around 25%."
+pipeline:
+  nodes:
+    - { id: batch, label: "batch sources", lane: 0 }
+    - { id: events, label: "event sources", lane: 0 }
+    - { id: glue, label: "glue + pyspark", note: "scheduled", lane: 1 }
+    - { id: apigw, label: "api gateway", note: "lambda", lane: 1 }
+    - { id: sqs, label: "sqs", note: "dlq + retries", lane: 2 }
+    - { id: s3, label: "s3 landing", note: "one contract", lane: 3, cmd: "cat projects/warehouse" }
+  edges:
+    - { from: batch, to: glue }
+    - { from: events, to: apigw }
+    - { from: apigw, to: sqs }
+    - { from: sqs, to: s3 }
+    - { from: glue, to: s3 }
 failed: false
 ---
 

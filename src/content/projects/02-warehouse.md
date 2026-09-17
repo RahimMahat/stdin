@@ -14,6 +14,18 @@ throughput: "One modelled Redshift layer behind a virtualization tier, serving e
 latency: "35% faster query execution after performance tuning"
 broke: "Analysts were querying close to raw tables, so every dashboard encoded its own quiet interpretation of what a metric meant — two of them could disagree without either being wrong. Query times and storage costs were both climbing, and nobody could point at the reason."
 fixed: "Modelled the curated layer in Redshift and put Denodo in front of it, so consumers depend on one surface instead of learning which physical table is the current one. Performance tuning brought query execution times down by about 35%; tiering storage across S3 and Redshift by how often something is actually touched cut storage cost by about 30%, without deleting anything anyone still needed."
+pipeline:
+  nodes:
+    - { id: s3, label: "s3 curated", note: "tiered storage", lane: 0, cmd: "cat projects/ingest" }
+    - { id: redshift, label: "redshift", note: "modelled", lane: 1 }
+    - { id: denodo, label: "denodo", note: "virtualization", lane: 2 }
+    - { id: quicksight, label: "quicksight", lane: 3 }
+    - { id: sql, label: "sql clients", lane: 3 }
+  edges:
+    - { from: s3, to: redshift }
+    - { from: redshift, to: denodo }
+    - { from: denodo, to: quicksight }
+    - { from: denodo, to: sql }
 failed: false
 ---
 

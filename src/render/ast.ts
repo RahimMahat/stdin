@@ -37,10 +37,33 @@ export interface CommitEntry {
   current?: boolean
 }
 
-/** Phase 3. Declared now so the renderer switch is exhaustive from the start. */
+export interface GraphNode {
+  id: string
+  label: string
+  /** Second line inside the box — a rate, a count, a schedule. */
+  note?: string
+  /** Top-left corner of the box, in the diagram's own coordinate space. */
+  x: number
+  y: number
+  status: 'ok' | 'fail' | 'running'
+  /** Makes the box a runnable command chip, exactly as `Cell.cmd` does. */
+  cmd?: string
+}
+
+/**
+ * A laid-out pipeline diagram.
+ *
+ * Every coordinate here is already resolved. Layout runs once in the content
+ * layer (`data/pipeline.ts`) and never in a renderer, because two renderers
+ * computing their own geometry is two chances to disagree — and the parity
+ * check compares the documents they produce, not the inputs they were given.
+ * `width`/`height` are the viewBox, carried for the same reason.
+ */
 export interface GraphDef {
-  nodes: { id: string; label: string; x: number; y: number; status: 'ok' | 'fail' | 'running' }[]
-  edges: { from: string; to: string }[]
+  nodes: GraphNode[]
+  edges: { from: string; to: string; label?: string }[]
+  width: number
+  height: number
 }
 
 export type Out =
@@ -83,3 +106,4 @@ export const cmds = (items: { name: string; label?: string }[], grid = false): O
   items,
   grid,
 })
+export const graph = (def: GraphDef): Out => ({ t: 'graph', def })
