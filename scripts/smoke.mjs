@@ -41,9 +41,10 @@ const built = await esbuild.build({
       import { renderLive } from './src/render/live'
       import { suggest } from './src/terminal/complete'
       import { find } from './src/commands'
+      import { rain } from './src/effects/rain'
       import { pageFor } from './src/commands'
       import { matrixName } from './src/effects/matrix-name'
-      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, find }
+      window.__t = { mount, registry, runForPage, canonical, run, renderStatic, renderLive, suggest, matrixName, pageFor, find, rain }
     `,
     resolveDir: process.cwd(),
     loader: 'ts',
@@ -917,6 +918,74 @@ check(
   'the rain is seeded, not random',
   JSON.stringify(T.run('cmatrix', data0)) === JSON.stringify(T.run('cmatrix', data0)),
 )
+
+/**
+ * The first cut of this was CSS alone — fixed glyphs under a moving gradient.
+ * It passed every check above and still read as a lit band rather than as
+ * rain, because what makes cmatrix cmatrix is the characters changing. So the
+ * claim under test is not "something moves", it is "the glyphs are not the
+ * ones we served".
+ */
+/** Column text with the newline nodes removed, so both sides compare alike. */
+const flat = (h) => [...h.querySelectorAll('.rain-col')].map((c) => c.textContent.split(String.fromCharCode(10)).join('')).join('')
+
+async function rainRun({ reduced = false } = {}) {
+  const d3 = new JSDOM('<!doctype html><div id="h"></div>', {
+    url: 'https://rahim-stdin.pages.dev/',
+    runScripts: 'outside-only',
+    pretendToBeVisual: true,
+  })
+  const w = d3.window
+  w.matchMedia = () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} })
+  w.eval(code)
+
+  const host = w.document.getElementById('h')
+  host.innerHTML = w.__t.renderStatic(w.__t.run('cmatrix', data0))
+  const served = flat(host)
+
+  w.__t.rain(host)
+  return { w, host, served }
+}
+
+const still = await rainRun({ reduced: true })
+check(
+  'refused motion leaves the grid still rather than empty',
+  still.host.querySelector('.rain')?.dataset.lit === 'still' &&
+    still.host.querySelectorAll('.rain-ch').length === 0,
+)
+still.w.close()
+
+const wet = await rainRun()
+check(
+  'the rain splits into characters when it starts',
+  wet.host.querySelectorAll('.rain-ch').length === 36 * 12,
+  `${wet.host.querySelectorAll(".rain-ch").length} cells`,
+)
+
+await new Promise((r) => wet.w.setTimeout(r, 500))
+const litClasses = [...wet.host.querySelectorAll('.rain-ch')].map((c) => c.className)
+check(
+  'a head and a trail are lit',
+  litClasses.some((c) => c.includes('head')) && litClasses.some((c) => c.includes('warm')),
+)
+
+const after = flat(wet.host)
+check(
+  'the glyphs cycle rather than sitting under a moving light',
+  after !== wet.served,
+  'not one character changed in 500ms',
+)
+
+// A second grid stands the first one down, rather than leaving both painting.
+wet.host.insertAdjacentHTML('beforeend', wet.w.__t.renderStatic(wet.w.__t.run('cmatrix', data0)))
+wet.w.__t.rain(wet.host)
+check(
+  'only the newest grid keeps painting',
+  wet.host.querySelectorAll('.rain[data-lit="on"]').length === 1 &&
+    wet.host.querySelectorAll('.rain[data-lit="done"]').length === 1,
+)
+wet.w.close()
+
 check('nothing threw during the session', thrown.length === 0, thrown.map((e) => e.stack ?? String(e)).join('\n    '))
 
 /* ---------------------------------------------------------------- */

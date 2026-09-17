@@ -203,12 +203,11 @@ td:last-child, th:last-child { padding-right: 0; }
 
 /* ---- glyph rain ----
  *
- * The lit band is the animation; the glyphs themselves never change. Cycling
- * 432 characters at 30fps would buy an effect most people could not name, at
- * the cost of the only animation here that currently costs nothing to run.
- *
- * Painted by clipping a moving gradient to the text, so there is one animated
- * property per column and no JS at all.
+ * Served as plain text and split into per-character spans by
+ * effects/rain.ts when it starts, the same way the masthead scramble defers
+ * its own split. Four states per character and nothing else: the head is the
+ * brightest thing on the page, the trail cools through two steps, and
+ * everything the head has already passed is simply not painted.
  */
 .rain {
   display: flex;
@@ -218,38 +217,15 @@ td:last-child, th:last-child { padding-right: 0; }
   line-height: 1.2;
   user-select: none;
 }
-.rain-col {
-  white-space: pre;
-  color: transparent;
-  background-image: linear-gradient(
-    to bottom,
-    transparent 30%,
-    color-mix(in oklab, var(--matrix) 30%, transparent) 40%,
-    var(--matrix) 47%,
-    var(--ink) 50%,
-    var(--matrix) 53%,
-    transparent 64%
-  );
-  background-size: 100% 300%;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: rain-fall linear infinite;
-}
-@keyframes rain-fall {
-  from { background-position: 0 -150%; }
-  to   { background-position: 0 150%; }
-}
+.rain-col { white-space: pre; }
 
-/* Eight cadences, dealt round-robin, so no two neighbours fall together. */
-.rain-col:nth-child(8n + 1) { animation-duration: 2.6s; animation-delay: -0.1s; }
-.rain-col:nth-child(8n + 2) { animation-duration: 3.9s; animation-delay: -1.7s; }
-.rain-col:nth-child(8n + 3) { animation-duration: 2.1s; animation-delay: -0.9s; }
-.rain-col:nth-child(8n + 4) { animation-duration: 4.6s; animation-delay: -2.4s; }
-.rain-col:nth-child(8n + 5) { animation-duration: 3.2s; animation-delay: -0.4s; }
-.rain-col:nth-child(8n + 6) { animation-duration: 5.1s; animation-delay: -3.1s; }
-.rain-col:nth-child(8n + 7) { animation-duration: 2.8s; animation-delay: -1.2s; }
-.rain-col:nth-child(8n + 8) { animation-duration: 4.2s; animation-delay: -2.0s; }
+.rain-ch { color: transparent; }
+.rain-ch.head { color: var(--ink); }
+.rain-ch.hot { color: var(--matrix); }
+.rain-ch.warm { color: color-mix(in oklab, var(--matrix) 45%, transparent); }
+
+/* Refused motion gets the grid lit and still, rather than an empty box. */
+.rain[data-lit="still"] .rain-col { color: var(--matrix); }
 
 /* ---- command chips: clickable everything ---- */
 .cmds { display: flex; flex-wrap: wrap; gap: 8px 14px; }
@@ -558,9 +534,6 @@ a.cell:hover { text-decoration: underline; }
   .masthead .name .g.on::after { content: none; }
   /* The reveal is also skipped in JS — see terminal/stream.ts. */
   .stream .out > * { animation: none; }
-  /* Without this the global duration override parks the gradient off-screen
-     and the rain renders as invisible text. */
-  .rain-col { animation: none; color: var(--matrix); background-image: none; }
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
