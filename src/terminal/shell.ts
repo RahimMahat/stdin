@@ -6,6 +6,7 @@ import { commonPrefix, suggest, type Suggestion } from './complete'
 import { loadData } from './data'
 import { stream, type Stream } from './stream'
 import { applyTheme } from './theme-dom'
+import { rain } from '../effects/rain'
 
 /**
  * The shell.
@@ -412,7 +413,12 @@ class Shell {
     reveal(echo)
 
     this.running = stream(body, renderLive(out))
-    this.running.done.then(() => this.announce(`${input} — output complete`))
+    this.running.done.then(() => {
+      this.announce(`${input} — output complete`)
+      // Lit only once the whole block has landed, so the effect never
+      // competes with the reveal that is revealing it.
+      rain(body)
+    })
 
     if (href && href !== location.pathname) {
       history.pushState({ cmd: input, href }, '', href)

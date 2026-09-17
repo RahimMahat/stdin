@@ -156,6 +156,15 @@ export function renderNode(n: Out): HTMLElement {
       return wrap
     }
 
+    case 'rain': {
+      const wrap = el('div', 'rain')
+      wrap.setAttribute('aria-hidden', 'true')
+      for (const c of n.cols) {
+        wrap.append(el('span', 'rain-col', c.split('').join(String.fromCharCode(10))))
+      }
+      return wrap
+    }
+
     case 'graph':
       return el('div', 'line o-dim', `[graph: ${n.def.nodes.length} nodes, not yet rendered]`)
   }

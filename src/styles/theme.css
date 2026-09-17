@@ -20,7 +20,7 @@
   --accent: #e8a33d; /* the prompt, the cursor, anything actionable */
   --ok: #7aa886;
   --fail: #d98a76;
-  --matrix: #6ee79a; /* the hover scramble on the masthead, and only that */
+  --matrix: #6ee79a; /* the masthead scramble and the `cmatrix` rain, and nothing else */
 
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
@@ -199,6 +199,33 @@ td:last-child, th:last-child { padding-right: 0; }
 .commit .date { color: var(--faint); grid-column: 2; }
 .commit .subject { grid-column: 2; color: var(--ink); }
 .commit .body { grid-column: 2; color: var(--dim); }
+
+
+/* ---- glyph rain ----
+ *
+ * Served as plain text and split into per-character spans by
+ * effects/rain.ts when it starts, the same way the masthead scramble defers
+ * its own split. Four states per character and nothing else: the head is the
+ * brightest thing on the page, the trail cools through two steps, and
+ * everything the head has already passed is simply not painted.
+ */
+.rain {
+  display: flex;
+  overflow: hidden;
+  margin: 2px 0;
+  font-size: 13px;
+  line-height: 1.2;
+  user-select: none;
+}
+.rain-col { white-space: pre; }
+
+.rain-ch { color: transparent; }
+.rain-ch.head { color: var(--ink); }
+.rain-ch.hot { color: var(--matrix); }
+.rain-ch.warm { color: color-mix(in oklab, var(--matrix) 45%, transparent); }
+
+/* Refused motion gets the grid lit and still, rather than an empty box. */
+.rain[data-lit="still"] .rain-col { color: var(--matrix); }
 
 /* ---- command chips: clickable everything ---- */
 .cmds { display: flex; flex-wrap: wrap; gap: 8px 14px; }

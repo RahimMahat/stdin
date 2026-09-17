@@ -13,6 +13,10 @@ import type { Cell, Out, Tone, TreeNode } from './ast'
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+/** Kept as constants so no template literal here has to carry an escape. */
+const NEWLINE = String.fromCharCode(10)
+const EMPTY = ''
+
 const tone = (t?: Tone): string => (t ? ` o-${t}` : '')
 
 /** A cell becomes a link when it names a command, a page, or a URL. */
@@ -103,6 +107,17 @@ function node(n: Out): string {
             `${esc(i.name)}${i.label ? `<span class="o-dim"> ${esc(i.label)}</span>` : ''}</a>`,
         )
         .join('')}</div>`
+
+    case 'rain':
+      // Decorative by construction: hidden from assistive tech, and the line
+      // printed above it carries whatever meaning there is.
+      return (
+        `<div class="rain" aria-hidden="true">` +
+        n.cols
+          .map((c) => `<span class="rain-col">${esc(c.split(EMPTY).join(NEWLINE))}</span>`)
+          .join(EMPTY) +
+        `</div>`
+      )
 
     case 'graph':
       // Phase 3. Until then a command may declare a graph and it renders as a

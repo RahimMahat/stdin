@@ -4,6 +4,7 @@ import { search, type Candidate } from './fuzzy'
 import { runnable } from './naming'
 import { cat } from './cat'
 import { clear } from './clear'
+import { cmatrix } from './cmatrix'
 import { contact } from './contact'
 import { git } from './git'
 import { makeHelp } from './help'
@@ -22,7 +23,7 @@ export { canonical, runnable } from './naming'
  * routes, the help table, and (in phase 2) autocomplete all read from this list,
  * so there is no second place to keep in sync.
  */
-const base: Command[] = [whoami, ls, cat, skills, git, now, contact, theme, clear]
+const base: Command[] = [whoami, ls, cat, skills, git, now, contact, theme, clear, cmatrix]
 
 const help = makeHelp(() => registry)
 
