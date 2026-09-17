@@ -111,7 +111,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 139, in
+Correctness lives in build-time checks rather than in review. Currently 152, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -127,6 +127,8 @@ is printed by `npm test`; update it here when it moves:
 - renderer parity
 - the hidden command stays hidden: out of `help`, out of every URL, still
   reachable from the prompt, and its grid seeded rather than rolled
+- the boot log is checked against the collections it claims to have counted,
+  and never reaches a visitor without JavaScript
 
 **When you fix a bug that a test could have caught, add the test in the same
 commit.** That is the established pattern here and the reason the suite is this

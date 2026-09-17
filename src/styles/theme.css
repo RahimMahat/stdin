@@ -227,6 +227,20 @@ td:last-child, th:last-child { padding-right: 0; }
 /* Refused motion gets the grid lit and still, rather than an empty box. */
 .rain[data-lit="still"] .rain-col { color: var(--matrix); }
 
+/* ---- boot log ----
+ *
+ * Reuses the `rise` keyframes the streamed output already uses, so a line
+ * arriving here and a line arriving from a command move identically. The
+ * global reduced-motion rule switches both off in the same place.
+ */
+.boot { margin: 0 0 18px; }
+.boot-line {
+  color: var(--dim);
+  white-space: pre-wrap;
+  animation: rise 140ms ease-out both;
+}
+.boot-ok { color: var(--ok); }
+
 /* ---- command chips: clickable everything ---- */
 .cmds { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 a.chip {

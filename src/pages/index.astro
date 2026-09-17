@@ -3,6 +3,8 @@ import Shell from '../layouts/Shell.astro'
 import { loadSite } from '../data/site'
 import { renderStatic } from '../render/static'
 import { cmds, line, blank } from '../render/ast'
+import { ymd } from '../commands/fmt'
+import pkg from '../../package.json'
 
 const data = await loadSite()
 const p = data.profile
@@ -31,6 +33,24 @@ const out = renderStatic([
   blank(),
   line('help lists everything. theme light if you prefer paper.', 'dim'),
 ])
+
+/**
+ * The boot log, assembled here because this is where the facts are. Nothing
+ * in it is invented: the version is package.json, the counts are the
+ * collections that loaded, and the date is the day `now/` stops passing the
+ * staleness rule and the build starts failing. It is embedded as data rather
+ * than as markup so a visitor without JavaScript is never shown a machine
+ * booting that already booted.
+ */
+const STALE_AFTER_DAYS = 90
+const expires = new Date(data.now.updated.getTime() + STALE_AFTER_DAYS * 86_400_000)
+const bootLog = [
+  `stdin v${pkg.version}`,
+  `[  ok  ] content mounted, ${data.projects.length} projects and ${data.roles.length} roles`,
+  `[  ok  ] now/ current until ${ymd(expires)}`,
+  `[  ok  ] javascript optional, every command is also a URL`,
+  `[  ok  ] shell ready`,
+]
 ---
 
 <Shell
@@ -55,6 +75,8 @@ const out = renderStatic([
   </header>
 
   <Fragment set:html={out} />
+
+  <script id="boot-log" type="application/json" is:inline set:html={JSON.stringify(bootLog)}></script>
 </Shell>
 
 <!--
@@ -65,5 +87,7 @@ const out = renderStatic([
 -->
 <script>
   import { matrixName } from '../effects/matrix-name.ts'
+  import { bootSequence } from '../effects/boot.ts'
   matrixName()
+  bootSequence()
 </script>
