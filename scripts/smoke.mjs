@@ -448,6 +448,204 @@ check('the root canonical is the bare origin, not /index',
   rootCanonical ? rootCanonical[1] : 'missing')
 
 /* ---------------------------------------------------------------- */
+/* discovery: robots, the sitemap, and the card                      */
+/* ---------------------------------------------------------------- */
+
+/**
+ * The site was live, correct, and completely unfindable by name for weeks.
+ * Nothing was blocking a crawler; nothing had ever told one the site existed.
+ * Being indexable and being discovered are different properties, and the
+ * second one has no symptom you can see locally — every page loads perfectly
+ * while no search engine has a reason to fetch any of them.
+ *
+ * Most of the fix is off-site and cannot be tested from here. These guard the
+ * half the repository owns: that the two files a crawler looks for exist, that
+ * the sitemap agrees with what was actually built, and that a link to this
+ * site unfurls as something rather than as a bare URL.
+ */
+
+const readOr = async (p, enc) => {
+  try {
+    return await readFile(p, enc)
+  } catch {
+    return enc ? '' : Buffer.alloc(0)
+  }
+}
+
+/* ---- robots.txt ---- */
+
+/**
+ * Shipped rather than left to the host. Cloudflare Pages answers /robots.txt
+ * for projects that do not ship one, and what it serves is the content-signals
+ * preamble: a page of comments, no directives, and no sitemap line.
+ */
+const robotsTxt = await readOr('dist/robots.txt', 'utf8')
+check('dist ships robots.txt', robotsTxt.length > 0)
+check(
+  'robots.txt lets every crawler in',
+  /^User-agent:\s*\*$/m.test(robotsTxt) && /^Allow:\s*\/$/m.test(robotsTxt),
+)
+check(
+  'robots.txt disallows nothing',
+  !/^Disallow:\s*\S/m.test(robotsTxt),
+  'a stray Disallow here is one line away from deindexing the site',
+)
+check(
+  'robots.txt names the sitemap at the configured host',
+  robotsTxt.includes(`Sitemap: ${SITE.origin}/sitemap.xml`),
+  robotsTxt.match(/^Sitemap:.*$/m)?.[0] ?? 'no Sitemap line',
+)
+
+/* ---- sitemap.xml ---- */
+
+const sitemapXml = await readOr('dist/sitemap.xml', 'utf8')
+check('dist ships sitemap.xml', sitemapXml.length > 0)
+check(
+  'the sitemap is a well-formed urlset',
+  sitemapXml.startsWith('<?xml') &&
+    sitemapXml.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') &&
+    sitemapXml.trimEnd().endsWith('</urlset>'),
+)
+
+const locs = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
+check('the sitemap lists something', locs.length > 0)
+check(
+  'every sitemap URL is on the configured host',
+  locs.every((l) => new URL(l).origin === SITE.origin),
+  locs.filter((l) => new URL(l).origin !== SITE.origin).join(', '),
+)
+check(
+  'no sitemap URL names the .html form the host redirects away from',
+  !locs.some((l) => /\.html$/.test(l)),
+  locs.filter((l) => /\.html$/.test(l)).join(', '),
+)
+
+// Both directions. A sitemap that misses a page is a page nobody finds; one
+// that names a page that was never built is a 404 handed to a crawler, and
+// enough of those and it stops trusting the file at all.
+const indexable = builtPages
+  .filter((f) => String(f) !== '404.html')
+  .map((f) => {
+    const u = '/' + String(f).split('\\').join('/')
+    return u === '/index.html' ? '/' : u.replace(/\.html$/, '')
+  })
+const listed = new Set(locs.map((l) => new URL(l).pathname))
+const unlisted = indexable.filter((p) => !listed.has(p))
+const phantom = [...listed].filter((p) => !indexable.includes(p))
+check('every page that was built is in the sitemap', unlisted.length === 0, unlisted.join(', '))
+check('and the sitemap names nothing that was not', phantom.length === 0, phantom.join(', '))
+
+check('the sitemap keeps the 404 out', !listed.has('/404'))
+
+// The same rule the rest of the suite enforces on pages and URLs: staying
+// hidden is the feature, and a sitemap is the most direct way to undo it.
+check(
+  'the sitemap keeps the hidden command and the dotfiles out',
+  !sitemapXml.includes('cmatrix') && !sitemapXml.includes('.plan'),
+)
+
+/* ---- the social card ---- */
+
+/**
+ * Not a ranking signal, and not here for one. A link posted anywhere renders
+ * as a card or as a bare URL, and which of those it is decides whether anyone
+ * clicks it — which is the only lever the site itself has on ever being
+ * linked to. The dimensions matter: platforms silently drop an image that is
+ * the wrong shape, which looks exactly like having no image at all.
+ */
+const ogPng = await readOr('dist/og.png')
+check('dist ships the social card', ogPng.length > 0, `${ogPng.length} bytes`)
+const ogW = ogPng.length > 24 ? ogPng.readUInt32BE(16) : 0
+const ogH = ogPng.length > 24 ? ogPng.readUInt32BE(20) : 0
+check('the card is the 1200x630 every platform expects', ogW === 1200 && ogH === 630, `${ogW}x${ogH}`)
+
+const SOCIAL = ['og:url', 'og:site_name', 'og:title', 'og:description', 'og:image', 'twitter:card']
+const socialGaps = []
+const ogUrlMismatch = []
+const relativeCards = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  for (const k of SOCIAL) if (!html.includes(`"${k}"`)) socialGaps.push(`${f}:${k}`)
+
+  const canon = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1]
+  const ogUrl = html.match(/<meta property="og:url" content="([^"]+)"/)?.[1]
+  if (canon !== ogUrl) ogUrlMismatch.push(`${f}: ${canon} vs ${ogUrl}`)
+
+  const img = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1] ?? ''
+  if (!img.startsWith(SITE.origin)) relativeCards.push(`${f}: ${img}`)
+}
+check('every page carries the card tags', socialGaps.length === 0, socialGaps.join(', '))
+check(
+  'og:url and the canonical never disagree',
+  ogUrlMismatch.length === 0,
+  ogUrlMismatch.join(', '),
+)
+check(
+  'og:image is absolute — a relative one resolves against the scraper, not the site',
+  relativeCards.length === 0,
+  relativeCards.join(', '),
+)
+
+/* ---- the Person node ---- */
+
+/**
+ * The entity signal, and the reason any of this might move a search for the
+ * name rather than for the site. "Rahim Mahat" is not a rare string: without
+ * `sameAs` naming the LinkedIn and GitHub profiles, there is nothing tying
+ * this site to the person a searcher meant, and the profile the engine already
+ * trusts wins by default.
+ *
+ * It belongs on the pages that are about him and nowhere else, and every
+ * mention has to carry the same @id or three pages describe three strangers.
+ */
+const ABOUT_HIM = ['index.html', 'resume.html', 'whoami.html']
+const carrying = []
+const ids = new Set()
+let sameAs = []
+let unparsed = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)
+  if (!m) continue
+  carrying.push(String(f))
+  let graph
+  try {
+    graph = JSON.parse(m[1])['@graph'] ?? []
+  } catch {
+    unparsed.push(String(f))
+    continue
+  }
+  const person = graph.find((n) => n['@type'] === 'Person')
+  if (person) {
+    ids.add(person['@id'])
+    sameAs = person.sameAs ?? []
+  }
+}
+check('every ld+json block is valid JSON', unparsed.length === 0, unparsed.join(', '))
+check(
+  'the Person node is on the three pages that are about him',
+  carrying.sort().join(', ') === ABOUT_HIM.join(', '),
+  carrying.join(', '),
+)
+check('and all three mentions are one entity', ids.size === 1, [...ids].join(', '))
+check(
+  'the Person node names both profiles, which is what ties the name to the site',
+  sameAs.some((u) => u.includes('linkedin.com')) && sameAs.some((u) => u.includes('github.com')),
+  sameAs.join(', '),
+)
+
+// og:type says `profile` where a person is described and `website` elsewhere.
+// A machine-readable claim that /theme is a biography is worse than a generic one.
+const wrongType = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  const t = html.match(/<meta property="og:type" content="([^"]+)"/)?.[1]
+  const expected = ABOUT_HIM.includes(String(f)) ? 'profile' : 'website'
+  if (t !== expected) wrongType.push(`${f}: ${t}`)
+}
+check('og:type claims a profile only where one is described', wrongType.length === 0, wrongType.join(', '))
+
+/* ---------------------------------------------------------------- */
 /* headings                                                          */
 /* ---------------------------------------------------------------- */
 
