@@ -23,6 +23,11 @@ const html = renderStatic(out)
 const description = renderText(out) || cmd.summary
 ---
 
-<Shell title={cmd.name} description={description} command={canonical(cmd)}>
+<Shell
+  title={cmd.name}
+  description={description}
+  command={canonical(cmd)}
+  person={cmd.name === 'whoami'}
+>
   <Fragment set:html={html} />
 </Shell>

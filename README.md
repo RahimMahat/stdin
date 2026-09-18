@@ -187,6 +187,11 @@ these failure modes is invisible during normal development.
   `src/data/site.ts`. The honest-failure node stops working if it is a genre.
 - **Links** (`scripts/check-links.mjs`) — runs on every build; every internal
   href must resolve to a generated file.
+- **Discovery** — `robots.txt` and `sitemap.xml` are generated from
+  `site` in the config and from the command registry, so neither can name a host
+  the site does not serve or a route the build did not write. The sitemap is
+  checked against `dist/` in both directions, and checked to keep out the 404,
+  the hidden command and the dotfiles.
 - **Placeholders** (`scripts/check-content.mjs`) — fails while any `TODO —`
   marker survives. Not wired into `build` on purpose, so local builds work
   before the copy is finished — which is exactly why it belongs in CI.
@@ -247,7 +252,7 @@ you.
 | phase | state |
 | --- | --- |
 | 1 · content + AST + static renderer | built · no placeholders left |
-| 2 · the shell | built · 126 checks in `npm test` |
+| 2 · the shell | built · 175 checks in `npm test` |
 | 3 · `dag` | blocked on real throughput numbers |
 | 4 · polish, font subsetting, contact function | started · `ls -a` egg, `404` in |
 | 5 · deploy | live on Cloudflare Pages as `rahim-stdin` |

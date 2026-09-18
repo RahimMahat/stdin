@@ -46,11 +46,12 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 97 shell checks — the real gate
+npm test               # build + link check + 175 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
 npm run icons          # regenerate favicon.ico + apple-touch-icon.png
+npm run og             # regenerate public/og.png (needs a Chrome; CHROME_PATH overrides)
 ```
 
 There is no single-test filter — `scripts/smoke.mjs` is one script that prints a
@@ -111,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 152, in
+Correctness lives in build-time checks rather than in review. Currently 175, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -120,6 +121,14 @@ is printed by `npm test`; update it here when it moves:
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin
+- `robots.txt` ships, disallows nothing, and names the sitemap at the configured
+  origin — the host serves a directive-free default when the project ships none
+- the sitemap agrees with `dist/` in **both** directions, keeps `404` out, and
+  keeps the hidden command and the dotfiles out
+- the social card ships, is exactly 1200x630, and every page's `og:url` matches
+  its canonical with an absolute `og:image`
+- the `Person` node is on the three pages that are about him and nowhere else,
+  all three carry one `@id`, and `sameAs` names both profiles
 - every page carries exactly one `<h1>`, and it is the command, not the PS1
 - `404.html` ships, is `noindex`, and is the only page that is
 - the favicon set ships and every page references it
