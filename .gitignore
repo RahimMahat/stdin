@@ -45,3 +45,17 @@ profile.yml
 graphify-out/
 .graphify_*
 *.stackdump
+
+# /brag output, ignored on purpose.
+#
+# brag-output/ is a launch video built from this repo — the rendered MP4 and its
+# poster, plus the Hyperframes project that produced them. Nearly 6 MB of it is
+# vendored third-party weight the site itself never loads: a music bed, a
+# handful of CC0 sound effects, GSAP, and woff2 copies of the two fonts the site
+# already pulls from Google.
+#
+# Every frame of it is derived from src/content/ and src/styles/theme.css, so it
+# goes stale the moment the copy or the palette moves. Rebuild it with /brag
+# rather than versioning it, and upload the MP4 wherever it is being posted.
+brag-output/
+brag-output-*/
