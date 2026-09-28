@@ -166,7 +166,9 @@ nothing else would notice.
 ## Adding things
 
 - **A project** — drop a file in `src/content/projects/`. It appears in
-  `ls projects/`, gets a page at `/projects/<slug>`, and joins `/resume`.
+  `ls projects/`, gets a page at `/projects/<slug>`, and joins `/resume`. Set
+  `kind: personal` if it was not paid work; the field defaults to `work` and
+  decides whether the page says "in production" or "built and running locally".
 - **A section** — write a `Command` in `src/commands/`, add it to `base` in
   `src/commands/index.ts`. Routing, `help`, and autocomplete all read
   from that one array.
@@ -252,7 +254,7 @@ you.
 | phase | state |
 | --- | --- |
 | 1 · content + AST + static renderer | built · no placeholders left |
-| 2 · the shell | built · 175 checks in `npm test` |
+| 2 · the shell | built · 186 checks in `npm test` |
 | 3 · `dag` | blocked on real throughput numbers |
 | 4 · polish, font subsetting, contact function | started · `ls -a` egg, `404` in |
 | 5 · deploy | live on Cloudflare Pages as `rahim-stdin` |

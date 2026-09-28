@@ -15,6 +15,7 @@ export const ls: Command = {
       { text: bytes(p.size), tone: 'dim' },
       { text: ymd(p.started), tone: 'dim' },
       { text: p.stack.slice(0, 3).join(' · '), tone: 'dim' },
+      { text: p.kind, tone: 'dim' },
       { text: p.failed ? 'failed' : 'ok', tone: p.failed ? 'fail' : 'ok' },
     ])
 
@@ -36,7 +37,7 @@ export const ls: Command = {
         'dim',
       ),
       blank(),
-      table(['name', 'size', 'started', 'stack', 'result'], rows),
+      table(['name', 'size', 'started', 'stack', 'kind', 'result'], rows),
       blank(),
       ...(all
         ? [

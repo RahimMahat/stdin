@@ -15,7 +15,9 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
       ['stack', p.stack.join(', ')],
       ['scale', p.throughput],
       ['latency', p.latency],
-      ['result', p.failed ? 'failed — post-mortem below' : 'in production'],
+      // `result` answers "how did it go", and for something built on my own
+      // time the honest answer is not "in production" — there is no production.
+      ['result', p.failed ? 'failed — post-mortem below' : p.kind === 'personal' ? 'built and running locally' : 'in production'],
       ...(p.repo ? ([['repo', p.repo]] as [string, string][]) : []),
     ]),
     blank(),

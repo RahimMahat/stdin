@@ -362,6 +362,72 @@ const rejected = [...offered].filter((c) => {
 check('no offered command comes back as an error', rejected.length === 0, rejected.join(' | '))
 
 /* ---------------------------------------------------------------- */
+/* work or personal                                                  */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Five of these were paid work and one was not, and the difference is exactly
+ * the kind of thing a portfolio is tempted to leave ambiguous. `kind` defaults
+ * to `work`, which is the right default for what is already here and the wrong
+ * one to inherit silently — so these assert the column is actually rendered and
+ * that a personal project is never described as being in production.
+ */
+const projectsForKind = T.runForPage(T.find('ls'), data0)
+const lsTable = projectsForKind.find((n) => n.t === 'table')
+
+check('ls names the kind column', lsTable?.cols.includes('kind'), (lsTable?.cols ?? []).join(', '))
+
+const kindCol = lsTable ? lsTable.cols.indexOf('kind') : -1
+const kinds = (lsTable?.rows ?? []).map((r) => r[kindCol]?.text)
+check(
+  'every project is either work or personal',
+  kinds.length > 0 && kinds.every((k) => k === 'work' || k === 'personal'),
+  kinds.join(', '),
+)
+
+// The default is load-bearing: the five files written before the field existed
+// do not set it, and they are all work.
+check(
+  'the files that predate the field still read as work',
+  kinds.filter((k) => k === 'work').length >= 5,
+  `${kinds.filter((k) => k === 'work').length} work, ${kinds.filter((k) => k === 'personal').length} personal`,
+)
+
+const resultOf = (slug) => {
+  const out = T.run(`cat projects/${slug}`, data0)
+  const rec = out.find((n) => n.t === 'kv')
+  return rec?.pairs.find(([k]) => k === 'result')?.[1]
+}
+
+for (const p of data0.projects) {
+  const expected = p.failed
+    ? 'failed — post-mortem below'
+    : p.kind === 'personal'
+      ? 'built and running locally'
+      : 'in production'
+  check(`cat projects/${p.slug} reports its result honestly`, resultOf(p.slug) === expected, resultOf(p.slug))
+}
+
+// The check above agrees with itself: it derives what it expects from the same
+// `kind` it is reading, so relabelling a project moves both sides and it passes
+// either way. This one drives the renderer with a project whose kind is set
+// here, so it holds whatever src/content happens to contain — including when
+// there is no personal project left to test against.
+const withKind = (kind) => ({
+  ...data0,
+  projects: data0.projects.map((p, i) => (i === 0 ? { ...p, kind, failed: false } : p)),
+})
+const probe = data0.projects[0].slug
+const resultIn = (d) => T.run(`cat projects/${probe}`, d).find((n) => n.t === 'kv')?.pairs.find(([k]) => k === 'result')?.[1]
+
+check('cat calls a work project in production', resultIn(withKind('work')) === 'in production', resultIn(withKind('work')))
+check(
+  'and never says that about one built on my own time',
+  resultIn(withKind('personal')) === 'built and running locally',
+  resultIn(withKind('personal')),
+)
+
+/* ---------------------------------------------------------------- */
 /* the dotfiles                                                      */
 /*                                                                   */
 /* Staying hidden IS the feature, so most of these assert absence.   */
