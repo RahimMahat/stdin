@@ -362,6 +362,72 @@ const rejected = [...offered].filter((c) => {
 check('no offered command comes back as an error', rejected.length === 0, rejected.join(' | '))
 
 /* ---------------------------------------------------------------- */
+/* work or personal                                                  */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Five of these were paid work and one was not, and the difference is exactly
+ * the kind of thing a portfolio is tempted to leave ambiguous. `kind` defaults
+ * to `work`, which is the right default for what is already here and the wrong
+ * one to inherit silently — so these assert the column is actually rendered and
+ * that a personal project is never described as being in production.
+ */
+const projectsForKind = T.runForPage(T.find('ls'), data0)
+const lsTable = projectsForKind.find((n) => n.t === 'table')
+
+check('ls names the kind column', lsTable?.cols.includes('kind'), (lsTable?.cols ?? []).join(', '))
+
+const kindCol = lsTable ? lsTable.cols.indexOf('kind') : -1
+const kinds = (lsTable?.rows ?? []).map((r) => r[kindCol]?.text)
+check(
+  'every project is either work or personal',
+  kinds.length > 0 && kinds.every((k) => k === 'work' || k === 'personal'),
+  kinds.join(', '),
+)
+
+// The default is load-bearing: the five files written before the field existed
+// do not set it, and they are all work.
+check(
+  'the files that predate the field still read as work',
+  kinds.filter((k) => k === 'work').length >= 5,
+  `${kinds.filter((k) => k === 'work').length} work, ${kinds.filter((k) => k === 'personal').length} personal`,
+)
+
+const resultOf = (slug) => {
+  const out = T.run(`cat projects/${slug}`, data0)
+  const rec = out.find((n) => n.t === 'kv')
+  return rec?.pairs.find(([k]) => k === 'result')?.[1]
+}
+
+for (const p of data0.projects) {
+  const expected = p.failed
+    ? 'failed — post-mortem below'
+    : p.kind === 'personal'
+      ? 'built and running locally'
+      : 'in production'
+  check(`cat projects/${p.slug} reports its result honestly`, resultOf(p.slug) === expected, resultOf(p.slug))
+}
+
+// The check above agrees with itself: it derives what it expects from the same
+// `kind` it is reading, so relabelling a project moves both sides and it passes
+// either way. This one drives the renderer with a project whose kind is set
+// here, so it holds whatever src/content happens to contain — including when
+// there is no personal project left to test against.
+const withKind = (kind) => ({
+  ...data0,
+  projects: data0.projects.map((p, i) => (i === 0 ? { ...p, kind, failed: false } : p)),
+})
+const probe = data0.projects[0].slug
+const resultIn = (d) => T.run(`cat projects/${probe}`, d).find((n) => n.t === 'kv')?.pairs.find(([k]) => k === 'result')?.[1]
+
+check('cat calls a work project in production', resultIn(withKind('work')) === 'in production', resultIn(withKind('work')))
+check(
+  'and never says that about one built on my own time',
+  resultIn(withKind('personal')) === 'built and running locally',
+  resultIn(withKind('personal')),
+)
+
+/* ---------------------------------------------------------------- */
 /* the dotfiles                                                      */
 /*                                                                   */
 /* Staying hidden IS the feature, so most of these assert absence.   */
@@ -410,6 +476,45 @@ for (const f of builtPages) {
   if ((await readFile(`dist/${f}`, 'utf8')).includes('.plan')) leaked.push(String(f))
 }
 check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leaked.join(', '))
+
+/* ---------------------------------------------------------------- */
+/* outbound links                                                    */
+/* ---------------------------------------------------------------- */
+
+/**
+ * `contact` and the one project with a public repo are the only places this
+ * site sends a reader somewhere else. Both go through the same `cell()` helper,
+ * which is where `target` and `rel` are set — so the risk is not that a page
+ * forgets them, it is that some future node renders an anchor without going
+ * through `cell()` at all. This walks the built HTML rather than the AST for
+ * exactly that reason.
+ */
+const bareExternals = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  for (const m of html.matchAll(/<a [^>]*href="https?:[^"]*"[^>]*>/g)) {
+    if (!/rel="noopener noreferrer"/.test(m[0])) bareExternals.push(`${f}: ${m[0].slice(0, 90)}`)
+  }
+}
+check(
+  'every outbound link opens away without handing over the opener',
+  bareExternals.length === 0,
+  bareExternals.join(`${String.fromCharCode(10)}    `),
+)
+
+// The repo row is the first kv value on this site that is a link rather than
+// plain text, and still the only one. Worth asserting it rendered as one — the
+// field existed unused for long enough that nothing had ever proved it works.
+const withRepo = data0.projects.filter((p) => p.repo)
+for (const p of withRepo) {
+  const html = await readFile(`dist/projects/${p.slug}.html`, 'utf8')
+  const row = html.match(/<dt>repo<[/]dt><dd>([^]*?)<[/]dd>/)?.[1] ?? ''
+  check(
+    `the repo on ${p.slug} is a link, not a URL somebody has to retype`,
+    row.includes(`href="${p.repo}"`),
+    row.slice(0, 120),
+  )
+}
 
 /* ---------------------------------------------------------------- */
 /* canonical urls                                                    */
@@ -1045,22 +1150,35 @@ const throughDom = (html) => {
 }
 
 const mismatches = []
-for (const cmd of T.registry) {
-  const nodes = T.runForPage(cmd, data)
 
-  const staticSide = throughDom(T.renderStatic(nodes))
+function diff(label, nodes) {
+    const staticSide = throughDom(T.renderStatic(nodes))
 
-  const liveHost = doc.createElement('div')
-  liveHost.append(...T.renderLive(nodes))
-  const liveSide = throughDom(liveHost.innerHTML)
+    const liveHost = doc.createElement('div')
+    liveHost.append(...T.renderLive(nodes))
+    const liveSide = throughDom(liveHost.innerHTML)
 
-  if (staticSide !== liveSide) {
-    const at = [...staticSide].findIndex((c, i) => c !== liveSide[i])
-    mismatches.push(
-      `${cmd.name} (diverges at ${at})\n      static: …${staticSide.slice(Math.max(0, at - 30), at + 70)}\n      live:   …${liveSide.slice(Math.max(0, at - 30), at + 70)}`,
-    )
-  }
+    if (staticSide !== liveSide) {
+      const at = [...staticSide].findIndex((c, i) => c !== liveSide[i])
+      mismatches.push(
+        `${label} (diverges at ${at})\n      static: …${staticSide.slice(Math.max(0, at - 30), at + 70)}\n      live:   …${liveSide.slice(Math.max(0, at - 30), at + 70)}`,
+      )
+    }
 }
+
+for (const cmd of T.registry) diff(cmd.name, T.runForPage(cmd, data))
+
+/**
+ * And every project page, which this loop had never once reached.
+ *
+ * `runForPage` runs each registry command in its argument-free form, so `cat`
+ * is exercised as bare `cat` — the usage error — and never as
+ * `cat projects/<slug>`. Project pages are a third of the site and were
+ * outside parity for as long as parity has existed. It went unnoticed because
+ * nothing on them used an AST feature the two renderers could disagree about.
+ * The repo row is the first: a kv value carrying a link appears nowhere else.
+ */
+for (const p of data.projects) diff(`cat projects/${p.slug}`, T.run(`cat projects/${p.slug}`, data))
 check(
   'every command renders identically in both renderers',
   mismatches.length === 0,

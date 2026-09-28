@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 175 shell checks — the real gate
+npm test               # build + link check + 188 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,12 +112,16 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 175, in
+Correctness lives in build-time checks rather than in review. Currently 188, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
 - content schema and a 90-day staleness rule on `now`
 - exactly one project may be marked `failed`
+- `kind` is `work` or `personal` on every project, `ls` renders the column, and
+  the renderer is driven with a synthetic project of each kind rather than
+  trusting whatever `src/content/` happens to hold — a personal build must never
+  be described as being in production
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin
@@ -133,7 +137,12 @@ is printed by `npm test`; update it here when it moves:
 - `404.html` ships, is `noindex`, and is the only page that is
 - the favicon set ships and every page references it
 - the terminal driven in real jsdom, including the masthead effect
-- renderer parity
+- renderer parity, now including `cat projects/<slug>` — the loop drives every
+  registry command in its argument-free form, so project pages had never been
+  covered by it, and a kv value carrying a link appears nowhere else
+- every outbound anchor in the built HTML carries `rel="noopener noreferrer"`,
+  checked against the HTML rather than the AST so a node that renders an anchor
+  without going through `cell()` cannot slip past
 - the hidden command stays hidden: out of `help`, out of every URL, still
   reachable from the prompt, and its grid seeded rather than rolled
 - the boot log is checked against the collections it claims to have counted,

@@ -28,6 +28,7 @@ export interface Project {
   latency: string
   broke: string
   fixed: string
+  kind: 'work' | 'personal'
   failed: boolean
   repo?: string
   /** The write-up, as HTML. Resolved from markdown in data/site.ts. */

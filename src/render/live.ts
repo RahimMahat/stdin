@@ -96,7 +96,12 @@ export function renderNode(n: Out): HTMLElement {
 
     case 'kv': {
       const dl = el('dl', 'kv')
-      for (const [k, v] of n.pairs) dl.append(el('dt', undefined, k), el('dd', undefined, v))
+      for (const [k, v] of n.pairs) {
+        const dd = el('dd')
+        if (typeof v === 'string') dd.textContent = v
+        else dd.append(cell(v))
+        dl.append(el('dt', undefined, k), dd)
+      }
       return dl
     }
 

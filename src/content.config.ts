@@ -28,6 +28,10 @@ const projects = defineCollection({
     // collapsed into a single sanitised paragraph.
     broke: z.string(),
     fixed: z.string(),
+    // Who it was for. Five of these were paid work at Infocepts and one was
+    // not, and a reader scanning `ls projects/` should not have to guess which.
+    // Defaults to work, so the existing files stay as they are.
+    kind: z.enum(['work', 'personal']).default('work'),
     // The one deliberate failure. Exactly one project may set this.
     failed: z.boolean().default(false),
     repo: z.string().url().optional(),

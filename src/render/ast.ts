@@ -13,6 +13,13 @@
 
 export type Tone = 'dim' | 'accent' | 'ok' | 'fail'
 
+/**
+ * A value in a record row. Plain text unless it needs to be a link — the repo
+ * row is a URL, and printing a URL a reader cannot click is the kind of small
+ * rudeness this site is supposed to be about not committing.
+ */
+export type KvValue = string | Cell
+
 export interface Cell {
   text: string
   tone?: Tone
@@ -53,7 +60,7 @@ export type Out =
    * is what lets the live renderer stay a few hundred bytes and ship no parser.
    */
   | { t: 'prose'; html: string }
-  | { t: 'kv'; pairs: [string, string][] }
+  | { t: 'kv'; pairs: [string, KvValue][] }
   | { t: 'table'; cols: string[]; rows: Cell[][] }
   | { t: 'tree'; root: TreeNode }
   | { t: 'log'; entries: CommitEntry[] }
@@ -80,7 +87,7 @@ export const line = (text: string, tone?: Tone): Out => ({ t: 'line', text, tone
 export const blank = (): Out => ({ t: 'blank' })
 export const rule = (): Out => ({ t: 'rule' })
 export const prose = (html: string): Out => ({ t: 'prose', html })
-export const kv = (pairs: [string, string][]): Out => ({ t: 'kv', pairs })
+export const kv = (pairs: [string, KvValue][]): Out => ({ t: 'kv', pairs })
 export const table = (cols: string[], rows: Cell[][]): Out => ({ t: 'table', cols, rows })
 export const tree = (root: TreeNode): Out => ({ t: 'tree', root })
 export const log = (entries: CommitEntry[]): Out => ({ t: 'log', entries })
