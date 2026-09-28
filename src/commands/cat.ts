@@ -1,4 +1,4 @@
-import { blank, cmds, kv, line, prose, rule, type Out } from '../render/ast'
+import { blank, cmds, kv, line, prose, rule, type KvValue, type Out } from '../render/ast'
 import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
 import type { Command, Ctx, Project, SiteData } from './types'
@@ -18,7 +18,9 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
       // `result` answers "how did it go", and for something built on my own
       // time the honest answer is not "in production" — there is no production.
       ['result', p.failed ? 'failed — post-mortem below' : p.kind === 'personal' ? 'built and running locally' : 'in production'],
-      ...(p.repo ? ([['repo', p.repo]] as [string, string][]) : []),
+      ...(p.repo
+        ? ([['repo', { text: p.repo.replace(/^https?:\/\//, ''), href: p.repo }]] as [string, KvValue][])
+        : []),
     ]),
     blank(),
     prose(p.body),

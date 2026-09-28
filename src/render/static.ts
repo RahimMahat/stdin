@@ -67,7 +67,7 @@ function node(n: Out): string {
 
     case 'kv':
       return `<dl class="kv">${n.pairs
-        .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
+        .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${typeof v === 'string' ? esc(v) : cell(v)}</dd>`)
         .join('')}</dl>`
 
     case 'table':
@@ -136,7 +136,8 @@ export function renderText(nodes: Out[], limit = 155): string {
   for (const n of nodes) {
     if (n.t === 'line') parts.push(n.text)
     else if (n.t === 'prose') parts.push(n.html.replace(/<[^>]+>/g, ' '))
-    else if (n.t === 'kv') parts.push(n.pairs.map(([k, v]) => `${k}: ${v}`).join(', '))
+    else if (n.t === 'kv')
+      parts.push(n.pairs.map(([k, v]) => `${k}: ${typeof v === 'string' ? v : v.text}`).join(', '))
   }
   const s = parts.join(' ').replace(/\s+/g, ' ').trim()
   return s.length > limit ? `${s.slice(0, limit - 1).trimEnd()}…` : s

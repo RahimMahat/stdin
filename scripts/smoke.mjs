@@ -478,6 +478,45 @@ for (const f of builtPages) {
 check('no built page leaks the dotfiles to a crawler', leaked.length === 0, leaked.join(', '))
 
 /* ---------------------------------------------------------------- */
+/* outbound links                                                    */
+/* ---------------------------------------------------------------- */
+
+/**
+ * `contact` and the one project with a public repo are the only places this
+ * site sends a reader somewhere else. Both go through the same `cell()` helper,
+ * which is where `target` and `rel` are set — so the risk is not that a page
+ * forgets them, it is that some future node renders an anchor without going
+ * through `cell()` at all. This walks the built HTML rather than the AST for
+ * exactly that reason.
+ */
+const bareExternals = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  for (const m of html.matchAll(/<a [^>]*href="https?:[^"]*"[^>]*>/g)) {
+    if (!/rel="noopener noreferrer"/.test(m[0])) bareExternals.push(`${f}: ${m[0].slice(0, 90)}`)
+  }
+}
+check(
+  'every outbound link opens away without handing over the opener',
+  bareExternals.length === 0,
+  bareExternals.join(`${String.fromCharCode(10)}    `),
+)
+
+// The repo row is the first kv value on this site that is a link rather than
+// plain text, and still the only one. Worth asserting it rendered as one — the
+// field existed unused for long enough that nothing had ever proved it works.
+const withRepo = data0.projects.filter((p) => p.repo)
+for (const p of withRepo) {
+  const html = await readFile(`dist/projects/${p.slug}.html`, 'utf8')
+  const row = html.match(/<dt>repo<[/]dt><dd>([^]*?)<[/]dd>/)?.[1] ?? ''
+  check(
+    `the repo on ${p.slug} is a link, not a URL somebody has to retype`,
+    row.includes(`href="${p.repo}"`),
+    row.slice(0, 120),
+  )
+}
+
+/* ---------------------------------------------------------------- */
 /* canonical urls                                                    */
 /* ---------------------------------------------------------------- */
 
@@ -1111,22 +1150,35 @@ const throughDom = (html) => {
 }
 
 const mismatches = []
-for (const cmd of T.registry) {
-  const nodes = T.runForPage(cmd, data)
 
-  const staticSide = throughDom(T.renderStatic(nodes))
+function diff(label, nodes) {
+    const staticSide = throughDom(T.renderStatic(nodes))
 
-  const liveHost = doc.createElement('div')
-  liveHost.append(...T.renderLive(nodes))
-  const liveSide = throughDom(liveHost.innerHTML)
+    const liveHost = doc.createElement('div')
+    liveHost.append(...T.renderLive(nodes))
+    const liveSide = throughDom(liveHost.innerHTML)
 
-  if (staticSide !== liveSide) {
-    const at = [...staticSide].findIndex((c, i) => c !== liveSide[i])
-    mismatches.push(
-      `${cmd.name} (diverges at ${at})\n      static: …${staticSide.slice(Math.max(0, at - 30), at + 70)}\n      live:   …${liveSide.slice(Math.max(0, at - 30), at + 70)}`,
-    )
-  }
+    if (staticSide !== liveSide) {
+      const at = [...staticSide].findIndex((c, i) => c !== liveSide[i])
+      mismatches.push(
+        `${label} (diverges at ${at})\n      static: …${staticSide.slice(Math.max(0, at - 30), at + 70)}\n      live:   …${liveSide.slice(Math.max(0, at - 30), at + 70)}`,
+      )
+    }
 }
+
+for (const cmd of T.registry) diff(cmd.name, T.runForPage(cmd, data))
+
+/**
+ * And every project page, which this loop had never once reached.
+ *
+ * `runForPage` runs each registry command in its argument-free form, so `cat`
+ * is exercised as bare `cat` — the usage error — and never as
+ * `cat projects/<slug>`. Project pages are a third of the site and were
+ * outside parity for as long as parity has existed. It went unnoticed because
+ * nothing on them used an AST feature the two renderers could disagree about.
+ * The repo row is the first: a kv value carrying a link appears nowhere else.
+ */
+for (const p of data.projects) diff(`cat projects/${p.slug}`, T.run(`cat projects/${p.slug}`, data))
 check(
   'every command renders identically in both renderers',
   mismatches.length === 0,

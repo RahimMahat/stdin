@@ -17,6 +17,7 @@ stack:
   - "OpenTelemetry"
   - "Python"
 kind: personal
+repo: "https://github.com/RahimMahat/warehouse-gpt"
 throughput: "Nine source tables and about 1.5M rows — 99,441 orders, 96,096 customers, 3,095 sellers — into a seven-table star schema behind 17 governed metrics, 31 Spark data-quality checks and 49 dbt tests, on a $0 budget"
 latency: "Execution accuracy over 58 golden questions: 63.5% on raw DDL, 98.0% on the full context. Documentation alone was worth 10–19 points, and with everything switched on the smallest model beat both larger ones running on docs alone"
 broke: "The evaluation lied to me in both directions, and I only found out because I read every single failure before publishing a number. Two were the comparator's fault: a percentage printed as `1.60` arrives as the float `1.6` and tripped my own rounding rule, and one extra `NULL` group row sank an otherwise correct answer. Two golden questions had drifted into near-copies of examples the agent can retrieve, so on the top rung it was being marked on its own study notes. And one rung of the ablation ladder had only been partly rebuilt, which made it look identical to the rung below it — because the questions still missing were exactly the ones where self-correction would have fired."
