@@ -2,7 +2,7 @@
 title: "Precomputed snapshots"
 slug: "snapshots"
 summary: "A Step Function and two Lambdas that precompute daily snapshots of the most-queried tables, so an analyst reading today stops scanning years."
-order: 5
+order: 10
 started: 2025-10-01
 stack:
   - "AWS Step Functions"
