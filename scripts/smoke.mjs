@@ -272,9 +272,15 @@ check(
 )
 check('a missing project reports itself', !!last()?.querySelector('.o-fail'))
 
-type(input, 'cat projects/pl')
+// The prefix is derived, not written down. This asserted `cat projects/pl` ->
+// `platform` until a project called `planning` landed and made that prefix
+// ambiguous — the completion was right and the test was wrong. What is being
+// checked is the mechanism, so let the data pick a prefix that is still unique.
+const slugs = data0.projects.map((p) => p.slug)
+const soleMatch = slugs.find((s) => slugs.filter((o) => o.startsWith(s.slice(0, 4))).length === 1)
+type(input, `cat projects/${soleMatch.slice(0, 4)}`)
 key(input, 'Tab')
-check('tab completes a unique match', input.value === 'cat projects/platform', input.value)
+check('tab completes a unique match', input.value === `cat projects/${soleMatch}`, input.value)
 
 type(input, 'the')
 key(input, 'Escape')

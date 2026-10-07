@@ -256,7 +256,7 @@ you.
 | phase | state |
 | --- | --- |
 | 1 · content + AST + static renderer | built · no placeholders left |
-| 2 · the shell | built · 188 checks in `npm test` |
+| 2 · the shell | built · 193 checks in `npm test` |
 | 3 · `dag` | blocked on real throughput numbers |
 | 4 · polish, font subsetting, contact function | started · `ls -a` egg, `404` in |
 | 5 · deploy | live on Cloudflare Pages as `rahim-stdin` |
