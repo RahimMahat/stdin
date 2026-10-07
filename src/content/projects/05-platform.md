@@ -28,7 +28,10 @@ AWS CDK where the resources are tightly coupled to application code, and a share
 library of reusable modules so that a bucket with the right encryption and
 lifecycle rules is the default thing you get rather than something you have to
 remember to configure. Jenkins and GitHub Actions run plan on every pull request
-and apply on merge. Manual effort per deployment fell by about 40%, but the
+and apply on merge. What is deliberately not in here is the data catalog: table
+definitions are their own body of Terraform, reviewed against what the
+transforms actually write rather than against an account layout, and they live
+in `cat projects/catalog`. Manual effort per deployment fell by about 40%, but the
 number that mattered more was the one I cannot put a percentage on: an
 environment change became something two people had looked at.
 
