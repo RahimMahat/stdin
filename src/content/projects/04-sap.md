@@ -1,56 +1,46 @@
 ---
-title: "Scheduled SAP ingestion"
+title: "SAP object onboarding"
 slug: "sap"
-summary: "Over 400 AppFlow flows pulling SAP into S3, provisioned from one boto3 module, transformed on a schedule rather than on every event."
+summary: "Ninety SAP services taken from \"it exists in SAP\" to \"it is a partitioned table in Athena\", through a fleet of 400+ AppFlow flows and a parameterised Glue job."
 order: 4
-started: 2024-04-01
+started: 2024-04-26
 stack:
   - "AWS AppFlow"
-  - "Python"
   - "AWS Glue"
+  - "Python"
+  - "pandas"
   - "Amazon S3"
-  - "AWS CDK"
-  - "Terraform"
   - "Parquet"
+  - "Terraform"
+  - "AWS CDK"
   - "Amazon Athena"
-  - "Denodo"
-throughput: "400+ AppFlow flows across five schedule tiers — every twenty minutes through to weekly — landing on the order of 100k rows and single-digit GB a day"
-latency: "No flow created by hand: adding a SAP service is a config entry, not a console session"
-broke: "A controlled-deployment feature meant to route flows to the right environment by SAP client id deleted a production flow instead. It was a GB-a-day source, the pipeline reported nothing wrong, and for two to three days everything downstream looked healthy. The failure surfaced as business users noticing their numbers had stopped moving — not as an alert."
-fixed: "Gave the flows a filtered read so a gap can be closed after the fact: re-query from a last_updated watermark and backfill, which is how the missing days were recovered. Environment routing now asserts that a client id belongs to the environment it is being applied to, and a flow missing from config is reported rather than deleted implicitly."
+throughput: "90 SAP objects onboarded and 140+ source-to-lake mappings added, in a fleet of 400+ flows on schedules from every twenty minutes to weekly"
+latency: "Delta-enabled feeds moved from one extraction a day to one an hour, with hour-level partitions to match"
+broke: "The mapping in the Glue job is one large dictionary, and several people add to it every week. Merge after merge, it had quietly collected repeated keys: 428 entries for 254 distinct datasets. A dictionary keeps the last definition and says nothing about the others, so which version of a dataset's transform ran depended on where it happened to sit in the file. Some of the duplicates disagreed with each other."
+fixed: "Found the duplicates, resolved each conflict by hand, and removed the rest: 428 entries down to 254, and a third of the file gone. The partition parsing that broke when client identifiers changed shape got the same treatment: one named pattern, defined once and reused by every mapping."
 failed: false
 ---
 
-**The problem.** A DataStage to Netezza to Cognos stack was being retired and the
-SAP data underneath it had to land in AWS. SAP does not present as one source:
-it is services and sub-services, hundreds of them, each with its own refresh
-expectation, and the ones finance cares about are not the ones supply chain
-cares about. Assembling that by hand was never on the table — four hundred flows
-built in a console is four hundred things that exist only as somebody's memory
-of having clicked them.
+**The problem.** SAP does not arrive as a source. It arrives as hundreds of
+OData services, each with its own keys, its own refresh expectation and its own
+surprises about what a boolean looks like. Every one the business asks for has
+to become the same three things: a flow that extracts it, a transform that
+types and partitions it, and a catalog table someone can query.
 
-**The architecture.** Every service and sub-service pair is one AppFlow flow,
-and no flow is authored by hand: a Python module over the AppFlow client takes
-the pair and produces the flow — connector profile, schedule, load type, whether
-it is full or incremental, destination prefix — from configuration, so adding a
-source is a config entry rather than a session in the console. Flows land raw in
-S3 and nothing interprets them there. Scheduled Glue jobs pick raw up per tier,
-do the unglamorous work — date extraction, type coercion, Parquet out — and
-write staging; raw stays under a lifecycle policy for roughly twelve months, so
-any transform can be replayed against what actually arrived rather than against
-what we believe arrived. Glue tables over both buckets are Terraform,
-deliberately apart from the CDK that deploys the provisioner and the transform
-jobs: the catalogue holds no logic, changes on a different clock, and has no
-business being coupled to the code that fills it. Athena for engineers, Denodo
-for everyone else.
+**The architecture.** A flow is a config entry: service, full or incremental,
+schedule, which SAP clients it applies to. Flows land raw in S3. One Glue job,
+run hourly, walks a mapping of source prefix to destination, with per-dataset
+column maps and type conversions, and writes Parquet partitioned by client,
+year, month, day and hour. The catalog table is Terraform. I did not design
+that pattern; I inherited it and became its heaviest user, adding 90 of the
+flows and more than half of the mappings in the job, across purchasing, sales,
+manufacturing, warehouse management, finance and quality.
 
-**The interesting decision.** Not making the transform event-driven. Firing on
-object arrival is the default answer and usually the right one — lower latency,
-nothing polling, no schedule to keep aligned with upstream. At four hundred flows
-it inverts. Each flow lands on its own cadence into its own prefix, so arrivals
-never batch; they come as a long tail of single-object events, each one starting
-a Glue job to process a fraction of a partition. The cost of that is real and
-the latency it buys is worth nothing, because nobody downstream reads SAP in the
-second it lands — they read it in the morning. So the transform runs per tier on
-a schedule and processes whole partitions. Event-driven was a better default and
-a worse fit, and telling those two apart is most of the job.
+**The interesting decision.** Carrying the SAP environment in the client
+identifier. A QA client and a production client can share the same three-digit
+client number, and the pipeline had assumed an identifier was just that number.
+I changed the identifier to carry both the environment and the number, threaded
+it through flow names, S3 paths and the job's partition parsing, and made every
+flow declare which clients it runs for. It touched all 400-odd flows. The
+alternative was a second copy of everything for QA, which is how environments
+drift.
