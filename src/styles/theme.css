@@ -222,10 +222,16 @@ td:last-child, th:last-child { padding-right: 0; }
 }
 .rain-col { white-space: pre; }
 
+/* Five bands, not three. A full-screen streak is long enough that a single
+   flat tier stops reading as a fading tail and starts reading as a bar. The
+   last two sit well under any contrast floor on purpose — these are decorative
+   and aria-hidden, and a tail that stays legible to the bottom is not a tail. */
 .rain-ch { color: transparent; }
 .rain-ch.head { color: var(--ink); }
 .rain-ch.hot { color: var(--matrix); }
-.rain-ch.warm { color: color-mix(in oklab, var(--matrix) 45%, transparent); }
+.rain-ch.warm { color: color-mix(in oklab, var(--matrix) 55%, transparent); }
+.rain-ch.fade { color: color-mix(in oklab, var(--matrix) 30%, transparent); }
+.rain-ch.dim { color: color-mix(in oklab, var(--matrix) 14%, transparent); }
 
 /* Refused motion gets the grid lit and still, rather than an empty box. */
 .rain[data-lit="still"] .rain-col { color: var(--matrix); }
@@ -247,8 +253,10 @@ td:last-child, th:last-child { padding-right: 0; }
   overflow: hidden;
   background: var(--ground);
   font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.15;
+  /* No font-size and no line-height on purpose. effects/rain.ts sets both
+     inline, because it has to divide the viewport by them — stating the cell
+     size here too gave it two owners, they drifted 2px apart, and the grid
+     came up short of the bottom of the screen. */
   user-select: none;
   cursor: pointer;
   opacity: 0;
@@ -258,11 +266,15 @@ td:last-child, th:last-child { padding-right: 0; }
 
 .rain-exit {
   position: absolute;
-  right: 20px;
-  bottom: 18px;
+  right: 16px;
+  bottom: 14px;
+  /* Its own ground, because it sits over falling glyphs and the one line that
+     says how to leave is the one line that has to stay readable. */
+  background: var(--ground);
+  padding: 5px 10px;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--faint);
+  color: var(--dim);
 }
 
 /* Nothing behind the overlay should scroll while it is up. */

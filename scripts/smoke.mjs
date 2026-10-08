@@ -1315,11 +1315,49 @@ check(
   full?.querySelector('.rain-exit')?.textContent,
 )
 
+/**
+ * The cell size is divided into the viewport to get the grid, so stating it in
+ * two places is how the grid stops matching the screen. It was stated twice
+ * once — `font-size: 14px` in the sheet against a 16 in the module — and the
+ * overlay came up 77px short of the bottom of the window with nothing failing.
+ * Neither renderer nor jsdom can see that, so what is checked is the invariant
+ * that caused it: the module sets both, and the sheet sets neither.
+ */
+const fullRule = (sheet.match(/\.rain-full \{([^}]*)\}/)?.[1] ?? '').replace(/\/\*[^]*?\*\//g, '')
+check(
+  'the overlay cell size has exactly one owner',
+  full.style.fontSize !== '' &&
+    full.style.lineHeight !== '' &&
+    !/font-size|line-height/.test(fullRule),
+  `inline ${full.style.fontSize}/${full.style.lineHeight}, sheet declares ${fullRule.trim().split(';').filter((d) => /font-size|line-height/.test(d)).join(';') || 'neither'}`,
+)
+
 await new Promise((r) => wet.w.setTimeout(r, 500))
 const litClasses = [...full.querySelectorAll('.rain-ch')].map((c) => c.className)
 check(
   'a head and a trail are lit',
   litClasses.some((c) => c.includes('head')) && litClasses.some((c) => c.includes('warm')),
+)
+
+/**
+ * And the streak is a fraction of the column rather than a fixed row count.
+ * Seven rows was most of the served 36x12 block and a stub on a full screen,
+ * which is what made the first cut read as thin — so the claim is about the
+ * ratio, not about a number of rows.
+ */
+const longestRun = [...full.querySelectorAll('.rain-col')].reduce((best, col) => {
+  let run = 0
+  let max = 0
+  for (const cell of col.querySelectorAll('.rain-ch')) {
+    run = cell.className === 'rain-ch' ? 0 : run + 1
+    if (run > max) max = run
+  }
+  return Math.max(best, max)
+}, 0)
+check(
+  'a streak is a fraction of the column, not a fixed seven rows',
+  longestRun > fullRows * 0.2,
+  `longest lit run ${longestRun} of ${fullRows} rows`,
 )
 
 const served = flat(full)

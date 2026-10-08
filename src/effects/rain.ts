@@ -26,17 +26,41 @@
 const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>[]{}/|=+*#%$&@?!;:~^'
 const NEWLINE = String.fromCharCode(10)
 const STEP_MS = 62
-/** How many rows stay lit behind the head before the column goes dark. */
-const TRAIL = 7
+
+/**
+ * How much of a column stays lit behind the head, as a fraction of its height,
+ * rolled per column so the streaks are not all the same length.
+ *
+ * Proportional and not a row count, which is the mistake the first full-screen
+ * cut made: seven rows was tuned against a twelve-row box, where it covered
+ * most of the column. Carried onto a fifty-row screen unchanged, the same
+ * seven rows became a stub falling through empty space, and the whole thing
+ * read as thin.
+ */
+const TRAIL_MIN = 0.3
+const TRAIL_VARY = 0.35
+
+/**
+ * Where the trail steps down, as fractions of its own length. Four bands over
+ * a long streak rather than the three a short one needed — at this length a
+ * single flat tier stops reading as a fading tail and starts reading as a bar.
+ */
+const HOT = 0.14
+const WARM = 0.45
+const FADE = 0.72
 
 /** On the way out the rain slows before it stops — ^C is a decision, not a cut. */
 const EXIT_SLOW = 2.6
 /** Must match the opacity transition on `.rain-full` in theme.css. */
 const FADE_MS = 900
 
-/** Glyph box. `--mono` advances 0.6em; 0.58 buys a column of slack if it never loads. */
-const SIZE = 14
-const ADVANCE = 0.58
+/**
+ * Glyph box. Both are applied to the overlay as inline style and are the only
+ * place the cell size is stated — see the note where the overlay is built.
+ * 0.6em is the nominal advance of `--mono`, used only when there is no layout
+ * to measure.
+ */
+const SIZE = 16
 const LINE = 1.15
 /**
  * A 4K viewport is around 60k per-character spans, which costs more to lay out
@@ -61,6 +85,8 @@ interface Column {
   /** Rows per step is always 1; this is how many steps to wait between moves. */
   every: number
   head: number
+  /** Rows lit behind the head. Rolled per column — see TRAIL_MIN. */
+  trail: number
 }
 
 export function rain(root: ParentNode = document): void {
@@ -87,21 +113,41 @@ function takeover(host: HTMLElement): () => void {
   // narrowing above and need the non-null binding rather than the union.
   const win: Window = view
 
-  // Cell size first, because the grid is whatever fits at that size.
-  const w = win.innerWidth || 1024
-  const h = win.innerHeight || 768
-  const rough = Math.ceil(w / (SIZE * ADVANCE)) * Math.ceil(h / (SIZE * LINE))
-  const scale = rough > BUDGET ? Math.sqrt(rough / BUDGET) : 1
-  const size = SIZE * scale
-  // One spare of each, so a font that loads narrower than assumed cannot leave
-  // an unpainted strip down the side.
-  const cols = Math.ceil(w / (size * ADVANCE)) + 1
-  const rows = Math.ceil(h / (size * LINE)) + 1
-
   const overlay = doc.createElement('div')
   overlay.className = 'rain-full'
   overlay.setAttribute('aria-hidden', 'true')
-  if (scale !== 1) overlay.style.fontSize = `${size.toFixed(2)}px`
+  // Both halves of the cell size are set here and nowhere else. theme.css
+  // deliberately declares neither: the first cut had the size in the sheet and
+  // the grid arithmetic in this file, they disagreed by 2px, and the overlay
+  // came up 77px short of the bottom of the screen.
+  overlay.style.fontSize = `${SIZE}px`
+  overlay.style.lineHeight = String(LINE)
+
+  // And measure the cell rather than assume it, because the advance is a fact
+  // about whichever font actually loaded. A hardcoded 0.58em against a
+  // fallback that advances 0.55 leaves an unpainted strip down the side.
+  const probe = doc.createElement('span')
+  probe.className = 'rain-col'
+  // Not stretched: the overlay is a flex row, so a probe left to `align-items:
+  // stretch` reports the height of the window rather than of two lines of text.
+  probe.style.alignSelf = 'flex-start'
+  probe.textContent = `M${NEWLINE}M`
+  overlay.append(probe)
+  doc.body.append(overlay)
+  const box = probe.getBoundingClientRect()
+  probe.remove()
+  // jsdom has no layout and returns zeros. Fall back to the nominal metrics.
+  const cw = box.width || SIZE * 0.6
+  const ch = box.height / 2 || SIZE * LINE
+
+  const w = win.innerWidth || 1024
+  const h = win.innerHeight || 768
+  const rough = Math.ceil(w / cw) * Math.ceil(h / ch)
+  const scale = rough > BUDGET ? Math.sqrt(rough / BUDGET) : 1
+  if (scale !== 1) overlay.style.fontSize = `${(SIZE * scale).toFixed(2)}px`
+  // One spare of each, so a rounding cannot leave the last row half-painted.
+  const cols = Math.ceil(w / (cw * scale)) + 1
+  const rows = Math.ceil(h / (ch * scale)) + 1
 
   const columns: Column[] = []
   for (let c = 0; c < cols; c++) {
@@ -118,13 +164,18 @@ function takeover(host: HTMLElement): () => void {
     }
 
     overlay.append(col)
+    const trail = Math.round(rows * (TRAIL_MIN + Math.random() * TRAIL_VARY))
     columns.push({
       cells,
+      trail,
       // Uneven speeds, so neighbours never march in step.
       every: 1 + Math.floor(Math.random() * 3),
-      // Staggered starts, and most columns begin above the top, so the first
-      // few steps are not one flat row falling together.
-      head: -Math.floor(Math.random() * (rows + TRAIL)),
+      // Heads start scattered *inside* the screen, not above it. Starting them
+      // all above staggers nicely but takes the better part of ten seconds to
+      // reach the bottom row, which means the fade-in plays over a screen that
+      // is still mostly empty. A column below its own trail is still dark, so
+      // this costs nothing and skips straight to steady state.
+      head: Math.floor(Math.random() * (rows + trail)) - trail,
     })
   }
 
@@ -135,7 +186,6 @@ function takeover(host: HTMLElement): () => void {
   hint.textContent = 'ctrl+c to exit'
   overlay.append(hint)
 
-  doc.body.append(overlay)
   doc.documentElement.dataset.rain = 'on'
   // Next frame, so the transition has an opacity to move away from.
   win.requestAnimationFrame(() => overlay.setAttribute('data-on', ''))
@@ -160,7 +210,7 @@ function takeover(host: HTMLElement): () => void {
 
       for (const c of columns) {
         if (step % c.every !== 0) continue
-        if (c.head - TRAIL > c.cells.length) {
+        if (c.head - c.trail > c.cells.length) {
           // On the way out a drained column stays drained. That is what makes
           // the rain thin out instead of cutting to black.
           if (exiting) continue
@@ -168,10 +218,15 @@ function takeover(host: HTMLElement): () => void {
         }
         c.head++
 
-        // Only the band around the head can have changed class since the last
-        // step. At full screen the difference between this and walking every
-        // row is eight writes per column against a hundred and thirty.
-        for (let row = c.head - TRAIL - 1; row <= c.head; row++) {
+        const hot = Math.max(2, c.trail * HOT)
+        const warm = c.trail * WARM
+        const fade = c.trail * FADE
+
+        // Only the trail can have changed since the last step, and within it
+        // only the handful of cells that crossed a band boundary — so the walk
+        // is the trail and the write is guarded. At 1080p that is around five
+        // writes a column rather than the sixty the walk alone would be.
+        for (let row = c.head - c.trail - 1; row <= c.head; row++) {
           const cell = c.cells[row]
           if (!cell) continue
           const behind = c.head - row
@@ -179,13 +234,19 @@ function takeover(host: HTMLElement): () => void {
             // A new head is a new character. This is the bit that was missing.
             cell.textContent = glyph()
             cell.className = 'rain-ch head'
-          } else if (behind <= 2) {
-            cell.className = 'rain-ch hot'
-          } else if (behind <= TRAIL) {
-            cell.className = 'rain-ch warm'
-          } else {
-            cell.className = 'rain-ch'
+            continue
           }
+          const cls =
+            behind <= hot
+              ? 'rain-ch hot'
+              : behind <= warm
+                ? 'rain-ch warm'
+                : behind <= fade
+                  ? 'rain-ch fade'
+                  : behind <= c.trail
+                    ? 'rain-ch dim'
+                    : 'rain-ch'
+          if (cell.className !== cls) cell.className = cls
         }
       }
     }
