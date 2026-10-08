@@ -8,10 +8,12 @@ import type { Command, Ctx } from './types'
  * a time, and its header calls itself "cmatrix, scoped to whichever letter the
  * pointer is over". This is the version that is not scoped to anything.
  *
- * The glyphs never change once printed — only the lit band travels down each
- * column, and that is CSS. A JS loop rewriting 432 characters at 30fps would
- * buy a effect most people would not be able to name, at the cost of the only
- * animation on this site that currently costs nothing to run.
+ * What this returns is a 36x12 seeded block, and that is not what anyone sees.
+ * `effects/rain.ts` reads it as a cue and takes the whole window instead. The
+ * node stays this size because a grid sized from `innerWidth` is a fact about
+ * the browser, not about the command, and output two renderers have to agree
+ * on cannot depend on the window. So the block is the fallback: reduced
+ * motion, or no JavaScript, get this and nothing else.
  *
  * Hidden: no page, absent from `help`, but left in the candidate list, so it
  * surfaces for anyone already typing toward it.

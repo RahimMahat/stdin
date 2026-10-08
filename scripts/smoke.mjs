@@ -1252,14 +1252,21 @@ check(
 /** Column text with the newline nodes removed, so both sides compare alike. */
 const flat = (h) => [...h.querySelectorAll('.rain-col')].map((c) => c.textContent.split(String.fromCharCode(10)).join('')).join('')
 
-async function rainRun({ reduced = false } = {}) {
+async function rainRun({ reduced = false, coarse = false } = {}) {
   const d3 = new JSDOM('<!doctype html><div id="h"></div>', {
     url: 'https://rahim-stdin.pages.dev/',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   })
   const w = d3.window
-  w.matchMedia = () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} })
+  // Answers per query rather than returning one verdict to every question —
+  // the module asks two now, and a stub that says yes to both would have the
+  // reduced-motion run claiming to be a phone as well.
+  w.matchMedia = (q) => ({
+    matches: q.includes('reduce') ? reduced : q.includes('hover: none') ? coarse : false,
+    addEventListener() {},
+    removeEventListener() {},
+  })
   w.eval(code)
 
   const host = w.document.getElementById('h')
@@ -1272,31 +1279,117 @@ async function rainRun({ reduced = false } = {}) {
 
 const still = await rainRun({ reduced: true })
 check(
-  'refused motion leaves the grid still rather than empty',
+  'refused motion leaves the grid still rather than empty, and takes no screen',
   still.host.querySelector('.rain')?.dataset.lit === 'still' &&
-    still.host.querySelectorAll('.rain-ch').length === 0,
+    still.host.querySelectorAll('.rain-ch').length === 0 &&
+    still.w.document.querySelector('.rain-full') === null,
 )
 still.w.close()
 
+/**
+ * The takeover. The served block is 36x12 because that is the only grid two
+ * renderers can agree on; the one a visitor sees is sized from the window. So
+ * the claim under test is that the thing painting is the window-sized one and
+ * the thumbnail stood down — a regression to the box would pass every check
+ * above it.
+ */
 const wet = await rainRun()
+const sheet = await readFile('src/styles/theme.css', 'utf8')
+const full = wet.w.document.querySelector('.rain-full')
+const fullCols = full?.querySelectorAll('.rain-col').length ?? 0
+const fullRows = full?.querySelector('.rain-col')?.querySelectorAll('.rain-ch').length ?? 0
 check(
-  'the rain splits into characters when it starts',
-  wet.host.querySelectorAll('.rain-ch').length === 36 * 12,
-  `${wet.host.querySelectorAll(".rain-ch").length} cells`,
+  'the rain takes the window rather than a 36x12 box',
+  // 1024x768 in jsdom. Loose bounds: the point is that it scales with the
+  // viewport, not that it agrees with one arithmetic.
+  fullCols > 80 && fullRows > 30,
+  `${fullCols} x ${fullRows} cells`,
+)
+check(
+  'the served thumbnail stands down once the screen is taken',
+  wet.host.querySelector('.rain')?.dataset.lit === 'full' &&
+    /\.rain\[data-lit="full"\]\s*\{\s*display:\s*none/.test(sheet),
+  wet.host.querySelector('.rain')?.dataset.lit,
+)
+check(
+  'nothing behind the overlay scrolls while it is up',
+  wet.w.document.documentElement.dataset.rain === 'on' &&
+    /html\[data-rain\]\s*\{\s*overflow:\s*hidden/.test(sheet),
+)
+check(
+  'the overlay says how to get out of it',
+  (full?.querySelector('.rain-exit')?.textContent ?? '').includes('ctrl+c'),
+  full?.querySelector('.rain-exit')?.textContent,
+)
+
+/**
+ * The cell size is divided into the viewport to get the grid, so stating it in
+ * two places is how the grid stops matching the screen. It was stated twice
+ * once — `font-size: 14px` in the sheet against a 16 in the module — and the
+ * overlay came up 77px short of the bottom of the window with nothing failing.
+ * Neither renderer nor jsdom can see that, so what is checked is the invariant
+ * that caused it: the module sets both, and the sheet sets neither.
+ */
+const fullRule = (sheet.match(/\.rain-full \{([^}]*)\}/)?.[1] ?? '').replace(/\/\*[^]*?\*\//g, '')
+check(
+  'the overlay cell size has exactly one owner',
+  full.style.fontSize !== '' &&
+    full.style.lineHeight !== '' &&
+    !/font-size|line-height/.test(fullRule),
+  `inline ${full.style.fontSize}/${full.style.lineHeight}, sheet declares ${fullRule.trim().split(';').filter((d) => /font-size|line-height/.test(d)).join(';') || 'neither'}`,
 )
 
 await new Promise((r) => wet.w.setTimeout(r, 500))
-const litClasses = [...wet.host.querySelectorAll('.rain-ch')].map((c) => c.className)
+const litClasses = [...full.querySelectorAll('.rain-ch')].map((c) => c.className)
 check(
   'a head and a trail are lit',
   litClasses.some((c) => c.includes('head')) && litClasses.some((c) => c.includes('warm')),
 )
 
-const after = flat(wet.host)
+/**
+ * And the streak is a fraction of the column rather than a fixed row count.
+ * Seven rows was most of the served 36x12 block and a stub on a full screen,
+ * which is what made the first cut read as thin — so the claim is about the
+ * ratio, not about a number of rows.
+ */
+const longestRun = [...full.querySelectorAll('.rain-col')].reduce((best, col) => {
+  let run = 0
+  let max = 0
+  for (const cell of col.querySelectorAll('.rain-ch')) {
+    run = cell.className === 'rain-ch' ? 0 : run + 1
+    if (run > max) max = run
+  }
+  return Math.max(best, max)
+}, 0)
+check(
+  'a streak is a fraction of the column, not a fixed seven rows',
+  longestRun > fullRows * 0.2,
+  `longest lit run ${longestRun} of ${fullRows} rows`,
+)
+
+const served = flat(full)
+await new Promise((r) => wet.w.setTimeout(r, 500))
 check(
   'the glyphs cycle rather than sitting under a moving light',
-  after !== wet.served,
+  flat(full) !== served,
   'not one character changed in 500ms',
+)
+
+/**
+ * The grid follows the window. On a desktop this is someone dragging a window
+ * edge and barely worth having; on a phone it is rotating, and it is the soft
+ * keyboard opening, which on Android takes a third of the window with it. A
+ * grid built once against the wrong height is the 77px strip again.
+ */
+const narrowCols = full.querySelectorAll('.rain-col').length
+Object.defineProperty(wet.w, 'innerWidth', { value: 1800, configurable: true })
+Object.defineProperty(wet.w, 'innerHeight', { value: 1000, configurable: true })
+wet.w.dispatchEvent(new wet.w.Event('resize'))
+await new Promise((r) => wet.w.setTimeout(r, 400))
+check(
+  'the grid is rebuilt when the window changes size',
+  full.querySelectorAll('.rain-col').length > narrowCols,
+  `${narrowCols} columns at 1024 wide, ${full.querySelectorAll('.rain-col').length} at 1800`,
 )
 
 // A second grid stands the first one down, rather than leaving both painting.
@@ -1304,10 +1397,53 @@ wet.host.insertAdjacentHTML('beforeend', wet.w.__t.renderStatic(wet.w.__t.run('c
 wet.w.__t.rain(wet.host)
 check(
   'only the newest grid keeps painting',
-  wet.host.querySelectorAll('.rain[data-lit="on"]').length === 1 &&
+  wet.w.document.querySelectorAll('.rain-full').length === 1 &&
+    wet.host.querySelectorAll('.rain[data-lit="full"]').length === 1 &&
     wet.host.querySelectorAll('.rain[data-lit="done"]').length === 1,
+  `${wet.w.document.querySelectorAll('.rain-full').length} overlays`,
+)
+
+/**
+ * And it gives the screen back. A full-screen takeover with no working exit is
+ * not an easter egg, it is a visitor having to reload the page, so this drives
+ * the real key rather than calling the teardown directly.
+ */
+wet.w.document.dispatchEvent(
+  new wet.w.KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }),
+)
+await new Promise((r) => wet.w.setTimeout(r, 1200))
+check(
+  'ctrl+c gives the screen back',
+  wet.w.document.querySelector('.rain-full') === null &&
+    wet.w.document.documentElement.dataset.rain === undefined &&
+    wet.host.querySelectorAll('.rain[data-lit="done"]').length === 2,
+  `${wet.w.document.querySelectorAll('.rain-full').length} overlays, data-rain ${wet.w.document.documentElement.dataset.rain}`,
 )
 wet.w.close()
+
+/**
+ * And the phone, which has no ^C, no escape and no `q`. It has a tap, the
+ * overlay has taken the whole screen, so the tap is the exit — and the hint has
+ * to name it, because an instruction to press a key that is not there is worse
+ * than no instruction at all.
+ */
+const touch = await rainRun({ coarse: true })
+const touchFull = touch.w.document.querySelector('.rain-full')
+const touchHint = touchFull?.querySelector('.rain-exit')?.textContent ?? ''
+check(
+  'a touch device is told about the gesture it actually has',
+  touchHint.includes('tap') && !touchHint.includes('ctrl'),
+  touchHint,
+)
+touchFull.dispatchEvent(new touch.w.MouseEvent('click', { bubbles: true }))
+await new Promise((r) => touch.w.setTimeout(r, 1200))
+check(
+  'and a tap gets it back out',
+  touch.w.document.querySelector('.rain-full') === null &&
+    touch.w.document.documentElement.dataset.rain === undefined,
+  `${touch.w.document.querySelectorAll('.rain-full').length} overlays`,
+)
+touch.w.close()
 
 /* ---------------------------------------------------------------- */
 /* the boot log                                                      */
