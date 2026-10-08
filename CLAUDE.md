@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 199 shell checks — the real gate
+npm test               # build + link check + 202 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 199, in
+Correctness lives in build-time checks rather than in review. Currently 202, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -156,6 +156,12 @@ is printed by `npm test`; update it here when it moves:
   and the rain came up 77px short of the bottom with every check still green.
   Streak length is checked as a fraction of the column for the same reason: a
   fixed row count is right for one grid size and wrong for every other
+- the overlay is usable on a phone, which has no ^C: the hint names the gesture
+  the device actually has, a tap gets back out of it, and the grid is rebuilt
+  on resize — rotation, and the soft keyboard, which on Android takes a third
+  of the window. The `matchMedia` stub in the suite answers per query for this
+  reason; one that answers every question alike had the reduced-motion run
+  claiming to be a phone too
 - the boot log is checked against the collections it claims to have counted,
   and never reaches a visitor without JavaScript
 

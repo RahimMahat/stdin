@@ -53,6 +53,8 @@ const FADE = 0.72
 const EXIT_SLOW = 2.6
 /** Must match the opacity transition on `.rain-full` in theme.css. */
 const FADE_MS = 900
+/** Resize settles before the grid is rebuilt — rotation fires a burst of them. */
+const RESIZE_MS = 200
 
 /**
  * Glyph box. Both are applied to the overlay as inline style and are the only
@@ -77,6 +79,10 @@ let stopPrevious: (() => void) | null = null
 
 const reduced = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** No hover is the same test `effects/matrix-name.ts` uses to mean "a phone". */
+const coarse = (): boolean =>
+  typeof matchMedia === 'function' && matchMedia('(hover: none)').matches
 
 const glyph = (): string => GLYPHS[Math.floor(Math.random() * GLYPHS.length)] as string
 
@@ -123,69 +129,100 @@ function takeover(host: HTMLElement): () => void {
   overlay.style.fontSize = `${SIZE}px`
   overlay.style.lineHeight = String(LINE)
 
-  // And measure the cell rather than assume it, because the advance is a fact
-  // about whichever font actually loaded. A hardcoded 0.58em against a
-  // fallback that advances 0.55 leaves an unpainted strip down the side.
-  const probe = doc.createElement('span')
-  probe.className = 'rain-col'
-  // Not stretched: the overlay is a flex row, so a probe left to `align-items:
-  // stretch` reports the height of the window rather than of two lines of text.
-  probe.style.alignSelf = 'flex-start'
-  probe.textContent = `M${NEWLINE}M`
-  overlay.append(probe)
   doc.body.append(overlay)
-  const box = probe.getBoundingClientRect()
-  probe.remove()
-  // jsdom has no layout and returns zeros. Fall back to the nominal metrics.
-  const cw = box.width || SIZE * 0.6
-  const ch = box.height / 2 || SIZE * LINE
 
-  const w = win.innerWidth || 1024
-  const h = win.innerHeight || 768
-  const rough = Math.ceil(w / cw) * Math.ceil(h / ch)
-  const scale = rough > BUDGET ? Math.sqrt(rough / BUDGET) : 1
-  if (scale !== 1) overlay.style.fontSize = `${(SIZE * scale).toFixed(2)}px`
-  // One spare of each, so a rounding cannot leave the last row half-painted.
-  const cols = Math.ceil(w / (cw * scale)) + 1
-  const rows = Math.ceil(h / (ch * scale)) + 1
-
-  const columns: Column[] = []
-  for (let c = 0; c < cols; c++) {
-    const col = doc.createElement('span')
-    col.className = 'rain-col'
-    const cells: HTMLElement[] = []
-
-    for (let r = 0; r < rows; r++) {
-      const s = doc.createElement('span')
-      s.className = 'rain-ch'
-      s.textContent = glyph()
-      cells.push(s)
-      col.append(s, doc.createTextNode(NEWLINE))
-    }
-
-    overlay.append(col)
-    const trail = Math.round(rows * (TRAIL_MIN + Math.random() * TRAIL_VARY))
-    columns.push({
-      cells,
-      trail,
-      // Uneven speeds, so neighbours never march in step.
-      every: 1 + Math.floor(Math.random() * 3),
-      // Heads start scattered *inside* the screen, not above it. Starting them
-      // all above staggers nicely but takes the better part of ten seconds to
-      // reach the bottom row, which means the fade-in plays over a screen that
-      // is still mostly empty. A column below its own trail is still dark, so
-      // this costs nothing and skips straight to steady state.
-      head: Math.floor(Math.random() * (rows + trail)) - trail,
-    })
+  // A soft keyboard is half a phone screen, and the screen is the whole point.
+  const focused = doc.activeElement
+  if (focused && typeof (focused as HTMLElement).blur === 'function') {
+    ;(focused as HTMLElement).blur()
   }
 
   // Nothing in here says how to leave, and a page that has gone black with no
-  // way out is a bug however pretty it is.
+  // way out is a bug however pretty it is. A phone has no ^C, so it is told
+  // about the gesture it does have — the overlay takes a click either way.
   const hint = doc.createElement('div')
   hint.className = 'rain-exit'
-  hint.textContent = 'ctrl+c to exit'
+  hint.textContent = coarse() ? 'tap to exit' : 'ctrl+c to exit'
   overlay.append(hint)
 
+  let columns: Column[] = []
+
+  /**
+   * Builds the grid to fit the overlay. Called again on resize, which on a
+   * phone is not an edge case: rotating is one, and so is the soft keyboard
+   * opening, which on Android takes a third of the window with it.
+   */
+  function build(): void {
+    // Measure the cell rather than assume it — the advance is a fact about
+    // whichever font actually loaded, and a hardcoded 0.58em against a
+    // fallback that advances 0.55 leaves an unpainted strip down the side.
+    const probe = doc.createElement('span')
+    probe.className = 'rain-col'
+    // Not stretched: the overlay is a flex row, so a probe left to
+    // `align-items: stretch` reports the height of the window rather than of
+    // two lines of text, which comes back as a three-row grid.
+    probe.style.alignSelf = 'flex-start'
+    probe.textContent = `M${NEWLINE}M`
+    overlay.style.fontSize = `${SIZE}px`
+    overlay.append(probe)
+    const cell = probe.getBoundingClientRect()
+    const area = overlay.getBoundingClientRect()
+    probe.remove()
+
+    // jsdom has no layout and returns zeros. Fall back to the nominal metrics.
+    const cw = cell.width || SIZE * 0.6
+    const ch = cell.height / 2 || SIZE * LINE
+    // The overlay's own box, not the window's. `innerHeight` is the visual
+    // viewport, which on iOS shrinks by the height of a toolbar that can
+    // retract a moment later, and on Android by the soft keyboard — either way
+    // a grid sized from it stops short of the element it is supposed to fill.
+    const w = area.width || win.innerWidth || 1024
+    const h = area.height || win.innerHeight || 768
+
+    const rough = Math.ceil(w / cw) * Math.ceil(h / ch)
+    const scale = rough > BUDGET ? Math.sqrt(rough / BUDGET) : 1
+    if (scale !== 1) overlay.style.fontSize = `${(SIZE * scale).toFixed(2)}px`
+    // One spare of each, so a rounding cannot leave the last row half-painted.
+    const cols = Math.ceil(w / (cw * scale)) + 1
+    const rows = Math.ceil(h / (ch * scale)) + 1
+
+    for (const old of overlay.querySelectorAll('.rain-col')) old.remove()
+    const next: Column[] = []
+
+    for (let c = 0; c < cols; c++) {
+      const col = doc.createElement('span')
+      col.className = 'rain-col'
+      const cells: HTMLElement[] = []
+
+      for (let r = 0; r < rows; r++) {
+        const s = doc.createElement('span')
+        s.className = 'rain-ch'
+        s.textContent = glyph()
+        cells.push(s)
+        col.append(s, doc.createTextNode(NEWLINE))
+      }
+
+      // Before the hint, so the one line that has to stay readable stays last.
+      overlay.insertBefore(col, hint)
+      const trail = Math.round(rows * (TRAIL_MIN + Math.random() * TRAIL_VARY))
+      next.push({
+        cells,
+        trail,
+        // Uneven speeds, so neighbours never march in step.
+        every: 1 + Math.floor(Math.random() * 3),
+        // Heads start scattered *inside* the screen, not above it. Starting
+        // them all above staggers nicely but takes the better part of ten
+        // seconds to reach the bottom row, which means the fade-in plays over
+        // a screen that is still mostly empty. A column below its own trail is
+        // still dark, so this costs nothing and skips straight to steady state.
+        head: Math.floor(Math.random() * (rows + trail)) - trail,
+      })
+    }
+
+    columns = next
+  }
+
+  build()
   doc.documentElement.dataset.rain = 'on'
   // Next frame, so the transition has an opacity to move away from.
   win.requestAnimationFrame(() => overlay.setAttribute('data-on', ''))
@@ -195,6 +232,7 @@ function takeover(host: HTMLElement): () => void {
   let last = 0
   let raf = 0
   let timer = 0
+  let resize = 0
 
   const frame = (now: number): void => {
     // `clear` took the block this belongs to. Give the screen back rather than
@@ -264,12 +302,22 @@ function takeover(host: HTMLElement): () => void {
     exit()
   }
 
+  /** Rotating a phone, or its keyboard opening, changes what has to be filled. */
+  const onResize = (): void => {
+    win.clearTimeout(resize)
+    resize = win.setTimeout(() => {
+      if (!exiting) build()
+    }, RESIZE_MS)
+  }
+
   function stop(): void {
     win.cancelAnimationFrame(raf)
     win.clearTimeout(timer)
+    win.clearTimeout(resize)
     overlay.remove()
     delete doc.documentElement.dataset.rain
     doc.removeEventListener('keydown', onKey, true)
+    win.removeEventListener('resize', onResize)
     host.dataset.lit = 'done'
     if (stopPrevious === stop) stopPrevious = null
   }
@@ -283,6 +331,8 @@ function takeover(host: HTMLElement): () => void {
   }
 
   doc.addEventListener('keydown', onKey, true)
+  win.addEventListener('resize', onResize)
+  // The only exit a touch device has, and the reason the hint names it there.
   overlay.addEventListener('click', exit)
 
   raf = win.requestAnimationFrame(frame)

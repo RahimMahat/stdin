@@ -1252,14 +1252,21 @@ check(
 /** Column text with the newline nodes removed, so both sides compare alike. */
 const flat = (h) => [...h.querySelectorAll('.rain-col')].map((c) => c.textContent.split(String.fromCharCode(10)).join('')).join('')
 
-async function rainRun({ reduced = false } = {}) {
+async function rainRun({ reduced = false, coarse = false } = {}) {
   const d3 = new JSDOM('<!doctype html><div id="h"></div>', {
     url: 'https://rahim-stdin.pages.dev/',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   })
   const w = d3.window
-  w.matchMedia = () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} })
+  // Answers per query rather than returning one verdict to every question —
+  // the module asks two now, and a stub that says yes to both would have the
+  // reduced-motion run claiming to be a phone as well.
+  w.matchMedia = (q) => ({
+    matches: q.includes('reduce') ? reduced : q.includes('hover: none') ? coarse : false,
+    addEventListener() {},
+    removeEventListener() {},
+  })
   w.eval(code)
 
   const host = w.document.getElementById('h')
@@ -1368,6 +1375,23 @@ check(
   'not one character changed in 500ms',
 )
 
+/**
+ * The grid follows the window. On a desktop this is someone dragging a window
+ * edge and barely worth having; on a phone it is rotating, and it is the soft
+ * keyboard opening, which on Android takes a third of the window with it. A
+ * grid built once against the wrong height is the 77px strip again.
+ */
+const narrowCols = full.querySelectorAll('.rain-col').length
+Object.defineProperty(wet.w, 'innerWidth', { value: 1800, configurable: true })
+Object.defineProperty(wet.w, 'innerHeight', { value: 1000, configurable: true })
+wet.w.dispatchEvent(new wet.w.Event('resize'))
+await new Promise((r) => wet.w.setTimeout(r, 400))
+check(
+  'the grid is rebuilt when the window changes size',
+  full.querySelectorAll('.rain-col').length > narrowCols,
+  `${narrowCols} columns at 1024 wide, ${full.querySelectorAll('.rain-col').length} at 1800`,
+)
+
 // A second grid stands the first one down, rather than leaving both painting.
 wet.host.insertAdjacentHTML('beforeend', wet.w.__t.renderStatic(wet.w.__t.run('cmatrix', data0)))
 wet.w.__t.rain(wet.host)
@@ -1396,6 +1420,30 @@ check(
   `${wet.w.document.querySelectorAll('.rain-full').length} overlays, data-rain ${wet.w.document.documentElement.dataset.rain}`,
 )
 wet.w.close()
+
+/**
+ * And the phone, which has no ^C, no escape and no `q`. It has a tap, the
+ * overlay has taken the whole screen, so the tap is the exit — and the hint has
+ * to name it, because an instruction to press a key that is not there is worse
+ * than no instruction at all.
+ */
+const touch = await rainRun({ coarse: true })
+const touchFull = touch.w.document.querySelector('.rain-full')
+const touchHint = touchFull?.querySelector('.rain-exit')?.textContent ?? ''
+check(
+  'a touch device is told about the gesture it actually has',
+  touchHint.includes('tap') && !touchHint.includes('ctrl'),
+  touchHint,
+)
+touchFull.dispatchEvent(new touch.w.MouseEvent('click', { bubbles: true }))
+await new Promise((r) => touch.w.setTimeout(r, 1200))
+check(
+  'and a tap gets it back out',
+  touch.w.document.querySelector('.rain-full') === null &&
+    touch.w.document.documentElement.dataset.rain === undefined,
+  `${touch.w.document.querySelectorAll('.rain-full').length} overlays`,
+)
+touch.w.close()
 
 /* ---------------------------------------------------------------- */
 /* the boot log                                                      */
