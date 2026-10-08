@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 193 shell checks — the real gate
+npm test               # build + link check + 197 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 193, in
+Correctness lives in build-time checks rather than in review. Currently 197, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -145,6 +145,11 @@ is printed by `npm test`; update it here when it moves:
   without going through `cell()` cannot slip past
 - the hidden command stays hidden: out of `help`, out of every URL, still
   reachable from the prompt, and its grid seeded rather than rolled
+- `cmatrix` takes the whole window rather than the 36x12 block it serves, the
+  served block stands down behind the overlay, nothing scrolls under it, it
+  says how to leave, and ^C actually gives the screen back — the exit is driven
+  with a real key event, because a full-screen takeover whose exit silently
+  stops working leaves a visitor reloading the page
 - the boot log is checked against the collections it claims to have counted,
   and never reaches a visitor without JavaScript
 

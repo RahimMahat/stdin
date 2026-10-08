@@ -203,11 +203,14 @@ td:last-child, th:last-child { padding-right: 0; }
 
 /* ---- glyph rain ----
  *
- * Served as plain text and split into per-character spans by
- * effects/rain.ts when it starts, the same way the masthead scramble defers
- * its own split. Four states per character and nothing else: the head is the
- * brightest thing on the page, the trail cools through two steps, and
- * everything the head has already passed is simply not painted.
+ * Four states per character and nothing else: the head is the brightest thing
+ * on the page, the trail cools through two steps, and everything the head has
+ * already passed is simply not painted.
+ *
+ * The served `.rain` block is the fallback. effects/rain.ts normally replaces
+ * it with `.rain-full`, which is sized from the viewport and so cannot be
+ * served — a command's output has to be the same in both renderers, and the
+ * window is not.
  */
 .rain {
   display: flex;
@@ -226,6 +229,44 @@ td:last-child, th:last-child { padding-right: 0; }
 
 /* Refused motion gets the grid lit and still, rather than an empty box. */
 .rain[data-lit="still"] .rain-col { color: var(--matrix); }
+
+/* The overlay took the screen; the thumbnail would only sit behind it. */
+.rain[data-lit="full"] { display: none; }
+
+/* ---- the takeover ----
+ *
+ * Opaque in `--ground`, so fading the overlay in *is* fading the session out,
+ * and fading it back out brings the session back with no second transition to
+ * keep in step. 900ms each way, a number effects/rain.ts also holds.
+ */
+.rain-full {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  overflow: hidden;
+  background: var(--ground);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.15;
+  user-select: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+.rain-full[data-on] { opacity: 1; }
+
+.rain-exit {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+
+/* Nothing behind the overlay should scroll while it is up. */
+html[data-rain] { overflow: hidden; }
 
 /* ---- boot log ----
  *

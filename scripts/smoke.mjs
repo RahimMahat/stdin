@@ -1272,30 +1272,61 @@ async function rainRun({ reduced = false } = {}) {
 
 const still = await rainRun({ reduced: true })
 check(
-  'refused motion leaves the grid still rather than empty',
+  'refused motion leaves the grid still rather than empty, and takes no screen',
   still.host.querySelector('.rain')?.dataset.lit === 'still' &&
-    still.host.querySelectorAll('.rain-ch').length === 0,
+    still.host.querySelectorAll('.rain-ch').length === 0 &&
+    still.w.document.querySelector('.rain-full') === null,
 )
 still.w.close()
 
+/**
+ * The takeover. The served block is 36x12 because that is the only grid two
+ * renderers can agree on; the one a visitor sees is sized from the window. So
+ * the claim under test is that the thing painting is the window-sized one and
+ * the thumbnail stood down — a regression to the box would pass every check
+ * above it.
+ */
 const wet = await rainRun()
+const sheet = await readFile('src/styles/theme.css', 'utf8')
+const full = wet.w.document.querySelector('.rain-full')
+const fullCols = full?.querySelectorAll('.rain-col').length ?? 0
+const fullRows = full?.querySelector('.rain-col')?.querySelectorAll('.rain-ch').length ?? 0
 check(
-  'the rain splits into characters when it starts',
-  wet.host.querySelectorAll('.rain-ch').length === 36 * 12,
-  `${wet.host.querySelectorAll(".rain-ch").length} cells`,
+  'the rain takes the window rather than a 36x12 box',
+  // 1024x768 in jsdom. Loose bounds: the point is that it scales with the
+  // viewport, not that it agrees with one arithmetic.
+  fullCols > 80 && fullRows > 30,
+  `${fullCols} x ${fullRows} cells`,
+)
+check(
+  'the served thumbnail stands down once the screen is taken',
+  wet.host.querySelector('.rain')?.dataset.lit === 'full' &&
+    /\.rain\[data-lit="full"\]\s*\{\s*display:\s*none/.test(sheet),
+  wet.host.querySelector('.rain')?.dataset.lit,
+)
+check(
+  'nothing behind the overlay scrolls while it is up',
+  wet.w.document.documentElement.dataset.rain === 'on' &&
+    /html\[data-rain\]\s*\{\s*overflow:\s*hidden/.test(sheet),
+)
+check(
+  'the overlay says how to get out of it',
+  (full?.querySelector('.rain-exit')?.textContent ?? '').includes('ctrl+c'),
+  full?.querySelector('.rain-exit')?.textContent,
 )
 
 await new Promise((r) => wet.w.setTimeout(r, 500))
-const litClasses = [...wet.host.querySelectorAll('.rain-ch')].map((c) => c.className)
+const litClasses = [...full.querySelectorAll('.rain-ch')].map((c) => c.className)
 check(
   'a head and a trail are lit',
   litClasses.some((c) => c.includes('head')) && litClasses.some((c) => c.includes('warm')),
 )
 
-const after = flat(wet.host)
+const served = flat(full)
+await new Promise((r) => wet.w.setTimeout(r, 500))
 check(
   'the glyphs cycle rather than sitting under a moving light',
-  after !== wet.served,
+  flat(full) !== served,
   'not one character changed in 500ms',
 )
 
@@ -1304,8 +1335,27 @@ wet.host.insertAdjacentHTML('beforeend', wet.w.__t.renderStatic(wet.w.__t.run('c
 wet.w.__t.rain(wet.host)
 check(
   'only the newest grid keeps painting',
-  wet.host.querySelectorAll('.rain[data-lit="on"]').length === 1 &&
+  wet.w.document.querySelectorAll('.rain-full').length === 1 &&
+    wet.host.querySelectorAll('.rain[data-lit="full"]').length === 1 &&
     wet.host.querySelectorAll('.rain[data-lit="done"]').length === 1,
+  `${wet.w.document.querySelectorAll('.rain-full').length} overlays`,
+)
+
+/**
+ * And it gives the screen back. A full-screen takeover with no working exit is
+ * not an easter egg, it is a visitor having to reload the page, so this drives
+ * the real key rather than calling the teardown directly.
+ */
+wet.w.document.dispatchEvent(
+  new wet.w.KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }),
+)
+await new Promise((r) => wet.w.setTimeout(r, 1200))
+check(
+  'ctrl+c gives the screen back',
+  wet.w.document.querySelector('.rain-full') === null &&
+    wet.w.document.documentElement.dataset.rain === undefined &&
+    wet.host.querySelectorAll('.rain[data-lit="done"]').length === 2,
+  `${wet.w.document.querySelectorAll('.rain-full').length} overlays, data-rain ${wet.w.document.documentElement.dataset.rain}`,
 )
 wet.w.close()
 
