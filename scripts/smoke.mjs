@@ -378,25 +378,99 @@ check('no offered command comes back as an error', rejected.length === 0, reject
  * one to inherit silently — so these assert the column is actually rendered and
  * that a personal project is never described as being in production.
  */
-const projectsForKind = T.runForPage(T.find('ls'), data0)
-const lsTable = projectsForKind.find((n) => n.t === 'table')
+/**
+ * The listing says it with headings now rather than with a column: one group
+ * of paid work, one of independent builds, and a "start here" group above both
+ * that can hold either and so is the only one still carrying a `kind` cell.
+ *
+ * `lsGroups` reads the output the way a reader does — each table belongs to
+ * the line printed above it.
+ */
+const lsGroups = (out) => {
+  const groups = []
+  let heading = ''
+  for (const n of out) {
+    if (n.t === 'line') heading = n.text
+    if (n.t === 'table') groups.push({ heading, cols: n.cols, rows: n.rows })
+  }
+  return groups
+}
+const groupOf = (out, slug) => lsGroups(out).filter((g) => g.rows.some((r) => r[0].text === slug))
+// Driven with a project whose fields are set here, so the checks hold whatever
+// src/content happens to contain. The first cut of this block read `kind` back
+// out of the same data it was checking and passed either way.
+const lsWith = (patch) =>
+  T.run('ls projects/', {
+    ...data0,
+    projects: data0.projects.map((p, i) => (i === 0 ? { ...p, failed: false, ...patch } : p)),
+  })
+const lsFirst = data0.projects[0].slug
 
-check('ls names the kind column', lsTable?.cols.includes('kind'), (lsTable?.cols ?? []).join(', '))
-
-const kindCol = lsTable ? lsTable.cols.indexOf('kind') : -1
-const kinds = (lsTable?.rows ?? []).map((r) => r[kindCol]?.text)
+const lsListed = lsGroups(T.runForPage(T.find('ls'), data0)).flatMap((g) => g.rows.map((r) => r[0].text))
 check(
-  'every project is either work or personal',
-  kinds.length > 0 && kinds.every((k) => k === 'work' || k === 'personal'),
-  kinds.join(', '),
+  'ls lists every project exactly once across its groups',
+  lsListed.length === data0.projects.length && new Set(lsListed).size === lsListed.length,
+  `${lsListed.length} rows, ${new Set(lsListed).size} distinct, ${data0.projects.length} projects`,
+)
+
+const asWork = groupOf(lsWith({ kind: 'work', featured: false }), lsFirst)
+const asPersonal = groupOf(lsWith({ kind: 'personal', featured: false }), lsFirst)
+check(
+  'ls puts paid work and independent builds under different headings',
+  asWork.length === 1 &&
+    asPersonal.length === 1 &&
+    /^production/.test(asWork[0].heading) &&
+    /^independent/.test(asPersonal[0].heading),
+  `work under "${asWork[0]?.heading}", personal under "${asPersonal[0]?.heading}"`,
+)
+
+// "Start here" is the one group that can mix the two, so it has to say which.
+const asFeatured = groupOf(lsWith({ kind: 'personal', featured: true }), lsFirst)
+const featuredKind = asFeatured[0]?.rows.find((r) => r[0].text === lsFirst)?.[asFeatured[0].cols.indexOf('kind')]?.text
+check(
+  'a featured project still says whether it was paid work',
+  asFeatured.length === 1 && /^start here/.test(asFeatured[0].heading) && featuredKind === 'personal',
+  `under "${asFeatured[0]?.heading}", kind cell "${featuredKind}"`,
 )
 
 // The default is load-bearing: the five files written before the field existed
 // do not set it, and they are all work.
+const workCount = data0.projects.filter((p) => p.kind === 'work').length
 check(
   'the files that predate the field still read as work',
-  kinds.filter((k) => k === 'work').length >= 5,
-  `${kinds.filter((k) => k === 'work').length} work, ${kinds.filter((k) => k === 'personal').length} personal`,
+  workCount >= 5,
+  `${workCount} work, ${data0.projects.length - workCount} personal`,
+)
+
+/**
+ * And every row gives a reason to open it. Thirteen slugs beside a size, a date
+ * and `ok` thirteen times was a list nobody had a reason to read past, when the
+ * result was already written in each file.
+ */
+const realLs = T.runForPage(T.find('ls'), data0)
+const unhooked = data0.projects.filter((p) => {
+  const cells = groupOf(realLs, p.slug)[0]?.rows.find((r) => r[0].text === p.slug) ?? []
+  return !p.hook || !cells.some((c) => c.text === p.hook)
+})
+check(
+  'ls prints what came of every project, not only its name',
+  unhooked.length === 0,
+  unhooked.map((p) => p.slug).join(', '),
+)
+
+const startHere = lsGroups(realLs).find((g) => /^start here/.test(g.heading))
+const promised = Number(realLs[0].text.match(/(\d+) to start with/)?.[1] ?? 0)
+check(
+  'the number ls says to start with is the number it then lists first',
+  promised === (startHere?.rows.length ?? 0) && promised === data0.projects.filter((p) => p.featured).length,
+  `says ${promised}, lists ${startHere?.rows.length ?? 0}`,
+)
+check(
+  'an empty group prints no heading',
+  !lsGroups(lsWith({})).some((g) => g.rows.length === 0) &&
+    !T.run('ls projects/', { ...data0, projects: data0.projects.map((p) => ({ ...p, featured: false })) }).some(
+      (n) => n.t === 'line' && /^start here/.test(n.text),
+    ),
 )
 
 const resultOf = (slug) => {
@@ -1283,6 +1357,8 @@ for (const cmd of T.registry) diff(cmd.name, T.runForPage(cmd, data))
  * The repo row is the first: a kv value carrying a link appears nowhere else.
  */
 for (const p of data.projects) diff(`cat projects/${p.slug}`, T.run(`cat projects/${p.slug}`, data))
+// `grep` with a term is the one other output shape the argument-free loop never sees.
+diff('grep <a stack term>', T.run(`grep ${data.projects[0].stack[0]}`, data))
 check(
   'every command renders identically in both renderers',
   mismatches.length === 0,
@@ -1542,6 +1618,113 @@ check(
   `${touch.w.document.querySelectorAll('.rain-full').length} overlays`,
 )
 touch.w.close()
+
+/* ---------------------------------------------------------------- */
+/* grep                                                              */
+/* ---------------------------------------------------------------- */
+
+/**
+ * For the reader who arrives with a word instead of with time. What matters is
+ * that it searches the write-ups and not only the fields `ls` prints, that it
+ * does not match on the markup those write-ups are stored as, and that nothing
+ * it offers as an example comes back empty.
+ *
+ * The body checks use a project whose text is set here. Asserting that some
+ * real word appears in some real write-up would be a test of the content, and
+ * would start failing the day a paragraph was reworded.
+ */
+const grepOut = (term, d = data0) => T.run(`grep ${term}`, d)
+const grepRows = (term, d = data0) =>
+  grepOut(term, d)
+    .find((n) => n.t === 'table')
+    ?.rows.map((r) => r[0].text) ?? []
+
+const p0 = data0.projects[0]
+const seeded = {
+  ...data0,
+  projects: [
+    { ...p0, body: '<zxqvtag>the zxqvword and a zxqv pair</zxqvtag>', broke: '<p>plain</p>', fixed: '<p>plain</p>' },
+    ...data0.projects.slice(1),
+  ],
+}
+
+const stackTerm = p0.stack[0]
+const withThatStack = data0.projects
+  .filter((p) => p.stack.some((s) => s.toLowerCase().includes(stackTerm.toLowerCase())))
+  .map((p) => p.slug)
+const stackHits = grepRows(stackTerm)
+check(
+  'grep finds every project that lists a stack term',
+  withThatStack.length > 0 && withThatStack.every((s) => stackHits.includes(s)),
+  `${stackTerm}: stack says ${withThatStack.join(', ')}; grep returned ${stackHits.join(', ')}`,
+)
+
+check(
+  'grep reads the write-up, not only what ls prints',
+  JSON.stringify(grepRows('zxqvword', seeded)) === JSON.stringify([p0.slug]),
+  grepRows('zxqvword', seeded).join(', ') || 'no rows',
+)
+check(
+  'grep does not care about case',
+  grepRows('ZXQVWORD', seeded).length === 1 && grepRows(stackTerm.toUpperCase()).length === stackHits.length,
+)
+check(
+  'a quoted phrase is searched as a phrase',
+  grepRows('"zxqv pair"', seeded).length === 1 && grepRows('"zxqv nope"', seeded).length === 0,
+)
+check(
+  'grep does not match on the markup the write-ups are stored as',
+  grepRows('zxqvtag', seeded).length === 0,
+  grepRows('zxqvtag', seeded).join(', '),
+)
+
+const counted = grepOut(stackTerm).find((n) => n.t === 'line')?.text ?? ''
+check(
+  'the count grep prints is the number of rows under it',
+  counted.startsWith(`${stackHits.length} of ${data0.projects.length} `),
+  counted,
+)
+
+const miss = grepOut('zzzznope')
+check(
+  'a search with no hits says so and offers the full list',
+  miss.some((n) => n.t === 'line' && n.tone === 'fail') &&
+    miss.some((n) => n.t === 'cmds' && n.items.some((i) => i.name === 'ls projects/')) &&
+    !miss.some((n) => n.t === 'table'),
+)
+
+// The examples are computed from the stacks. One that returned nothing would be
+// the prompt recommending a dead end, and the label is a promise about the count.
+const grepOffered = T.run('grep', data0).find((n) => n.t === 'cmds')?.items ?? []
+const emptyExamples = grepOffered.filter((i) => {
+  const rows = T.run(i.name, data0).find((n) => n.t === 'table')?.rows.length ?? 0
+  return rows === 0 || i.label !== `${rows} projects`
+})
+check(
+  'every search grep suggests returns what its label says',
+  grepOffered.length > 0 && emptyExamples.length === 0,
+  emptyExamples.map((i) => `${i.name} (${i.label})`).join(' | ') || `${grepOffered.length} examples`,
+)
+
+// Its output depends on what was typed, and a URL has to name one thing.
+check(
+  'grep has no page, no URL and no place in the sitemap',
+  T.find('grep')?.page === false &&
+    T.pageFor(`grep ${stackTerm}`, data0.projects.map((p) => p.slug)) === null &&
+    !builtPages.some((f) => String(f).startsWith('grep')) &&
+    !sitemapXml.includes('/grep'),
+)
+check(
+  'help lists grep and the prompt completes it',
+  T.run('help', data0)
+    .find((n) => n.t === 'table')
+    ?.rows.some((r) => r[0].text.startsWith('grep')) && T.suggest('gre', data0).some((s) => s.value === 'grep'),
+  T.suggest('gre', data0).map((s) => s.value).join(' | '),
+)
+check(
+  'ls tells a reader that grep exists',
+  T.runForPage(T.find('ls'), data0).some((n) => n.t === 'line' && n.text.includes('grep')),
+)
 
 /* ---------------------------------------------------------------- */
 /* the boot log                                                      */

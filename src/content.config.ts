@@ -16,6 +16,12 @@ const projects = defineCollection({
     title: z.string(),
     slug: z.string().regex(/^[a-z0-9-]+$/, 'slug must be kebab-case'),
     summary: z.string().max(160, 'summary is a one-liner; keep it under 160 chars'),
+    // The one line `ls` prints beside the name. Required for the same reason
+    // throughput is: thirteen slugs in a column give nobody a reason to open
+    // one, and the result is the reason. Capped because it is a table cell.
+    hook: z.string().max(56, 'hook is one table cell; keep it under 56 chars'),
+    // Leads the listing. A handful at most, or it stops meaning anything.
+    featured: z.boolean().default(false),
     // Ordering in `ls projects/` — lowest first.
     order: z.number().int(),
     started: z.coerce.date(),

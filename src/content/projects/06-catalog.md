@@ -2,6 +2,7 @@
 title: "The data catalog as code"
 slug: "catalog"
 summary: "More than 150 partitioned Glue catalog tables and 5,000 columns declared in Terraform, a third of the platform's catalog."
+hook: "154 tables and 5,000+ columns declared in Terraform"
 order: 6
 started: 2024-06-05
 stack:

@@ -2,6 +2,7 @@
 title: "Warehouse and serving layer"
 slug: "warehouse"
 summary: "The serving layer — Redshift models, a Denodo virtualization tier, and the QuickSight dashboards the business actually opens on a Monday morning."
+hook: "35% faster queries behind one serving layer"
 order: 2
 started: 2023-03-01
 stack:

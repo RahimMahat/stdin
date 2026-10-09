@@ -2,6 +2,7 @@
 title: "Lossproof"
 slug: "lossproof"
 summary: "The same CDC pipeline built carelessly and correctly, then faulted. With every fault in one run, 69% of the careless lake was wrong. The correct one matched."
+hook: "69% of the careless lake wrong; the correct one matched"
 order: 13
 started: 2026-10-09
 stack:

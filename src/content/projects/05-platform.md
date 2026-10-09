@@ -2,6 +2,7 @@
 title: "Infrastructure as code"
 slug: "platform"
 summary: "Terraform and AWS CDK modules that moved environment setup out of the console and into reviewed pull requests."
+hook: "40% less manual effort per deployment"
 order: 5
 started: 2024-05-01
 stack:

@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 213 shell checks — the real gate
+npm test               # build + link check + 228 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,16 +112,25 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 213, in
+Correctness lives in build-time checks rather than in review. Currently 228, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
 - content schema and a 90-day staleness rule on `now`
 - exactly one project may be marked `failed`
-- `kind` is `work` or `personal` on every project, `ls` renders the column, and
-  the renderer is driven with a synthetic project of each kind rather than
-  trusting whatever `src/content/` happens to hold — a personal build must never
-  be described as being in production
+- `kind` is `work` or `personal` on every project, `ls` files the two under
+  different headings, and the renderer is driven with a synthetic project of
+  each kind rather than trusting whatever `src/content/` happens to hold — a
+  personal build must never be described as being in production
+- `ls` lists every project exactly once across its groups, prints each one's
+  `hook` beside its name, says how many to start with and then lists that many,
+  and prints no heading for a group with nothing in it. "Start here" is the one
+  group that can mix kinds, so it is the one that still carries a `kind` cell
+- `grep` reads the write-ups and not only what `ls` prints, ignores case, takes
+  a quoted phrase as a phrase, does not match on the HTML the write-ups are
+  stored as, counts what it lists, and never suggests a search that comes back
+  empty — the examples are computed from the stacks. It has no page: its output
+  depends on what was typed, and a URL has to name one thing
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin

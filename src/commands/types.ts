@@ -21,6 +21,10 @@ export interface Project {
   slug: string
   title: string
   summary: string
+  /** The result in one table cell. What `ls` and `grep` print beside the name. */
+  hook: string
+  /** Listed under "start here". */
+  featured: boolean
   order: number
   started: Date
   stack: string[]

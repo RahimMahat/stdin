@@ -2,6 +2,7 @@
 title: "Supply-planning ingestion"
 slug: "planning"
 summary: "Ten scheduled Glue jobs that check planning-system extracts against a declared schema and land them as partitioned tables."
+hook: "10 Glue jobs; a bad file fails the run and names itself"
 order: 7
 started: 2024-06-05
 stack:

@@ -2,6 +2,8 @@
 title: "Analytics event API"
 slug: "events"
 summary: "A REST endpoint, a queue, two Lambdas and a Glue job that take usage events from client applications to a partitioned table, built alone in three phases."
+hook: "first endpoint to queryable table in under four months"
+featured: true
 order: 8
 started: 2024-08-19
 stack:

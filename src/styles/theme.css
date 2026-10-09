@@ -177,6 +177,10 @@ td {
   color: var(--ink);
 }
 td:last-child, th:last-child { padding-right: 0; }
+/* The first column is a name, and a name that breaks at its hyphen is two
+   names. The minimum is what lines the result column up across the separate
+   tables `ls` prints, one per group. */
+td:first-child, th:first-child { white-space: nowrap; min-width: 17ch; width: 1%; }
 
 /* ---- tree ---- */
 .tree { white-space: pre; overflow-x: auto; }
