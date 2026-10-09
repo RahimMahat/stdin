@@ -677,6 +677,34 @@ check(
   planted.join(' | '),
 )
 
+/**
+ * What it says has to be what the content holds. The first cut announced that
+ * one project was marked as failed, because the schema allows one; none was,
+ * and it shipped. It also spelled the project count out as a word. Both are
+ * statements a model will repeat verbatim, so both are tied to the data here.
+ */
+const failedNow = data0.projects.filter((p) => p.failed).length
+check(
+  'llms.txt mentions a failed project only if there is one',
+  /marked as failed/.test(llmsTxt) === failedNow > 0,
+  `${failedNow} failed in the content, file ${/marked as failed/.test(llmsTxt) ? 'mentions' : 'does not mention'} one`,
+)
+const statedCount = llmsTxt.match(/^(\S+) written-up projects/m)?.[1]
+check(
+  'llms.txt states the number of projects there actually are',
+  statedCount === String(data0.projects.length),
+  `says ${statedCount}, there are ${data0.projects.length}`,
+)
+// "Reproducible from the linked repositories" is only true of a project that
+// links one, so the claim is scoped to the independent work and that scope is
+// checked: every project it covers has to carry a repo.
+const unsourced = data0.projects.filter((p) => p.kind === 'personal' && !p.repo).map((p) => p.slug)
+check(
+  'every project llms.txt calls reproducible links its source',
+  unsourced.length === 0,
+  unsourced.join(', '),
+)
+
 /* ---- sitemap.xml ---- */
 
 const sitemapXml = await readOr('dist/sitemap.xml', 'utf8')
