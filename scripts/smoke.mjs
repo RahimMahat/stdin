@@ -607,6 +607,76 @@ check(
   robotsTxt.match(/^Sitemap:.*$/m)?.[0] ?? 'no Sitemap line',
 )
 
+/* ---- llms.txt ---- */
+
+/**
+ * The llmstxt.org file, for a model reading the site rather than a person.
+ *
+ * Generated from the collections like the sitemap, so these check the same two
+ * things the sitemap guards do — that it cannot list a project which does not
+ * exist, and cannot miss one that does — plus one that is particular to this
+ * file and is really a decision written down where it can fail.
+ */
+const llmsTxt = await readOr('dist/llms.txt', 'utf8')
+check('dist ships llms.txt', llmsTxt.length > 0)
+
+const llmsLinks = [...llmsTxt.matchAll(/https?:\/\/[^\s)]+/g)].map((m) => m[0])
+const llmsOwn = llmsLinks.filter((l) => l.startsWith(SITE.origin))
+const llmsSlugs = new Set(
+  llmsOwn
+    .map((l) => new URL(l).pathname.match(/^\/projects\/([a-z0-9-]+)$/)?.[1])
+    .filter(Boolean),
+)
+const realSlugs = new Set(data0.projects.map((p) => p.slug))
+
+check(
+  'llms.txt names every project, and only projects that exist',
+  llmsSlugs.size === realSlugs.size && [...realSlugs].every((s) => llmsSlugs.has(s)),
+  `${[...realSlugs].filter((s) => !llmsSlugs.has(s)).join(', ') || 'none'} missing; ${[...llmsSlugs].filter((s) => !realSlugs.has(s)).join(', ') || 'none'} invented`,
+)
+
+// A file whose whole purpose is being quoted must not quote a dead URL.
+// `readdir` hands back the platform's separator, so `projects\ingest.html` on
+// Windows never matches a URL path. Compare on one spelling of the same name.
+const builtPaths = new Set(builtPages.map((f) => String(f).split(String.fromCharCode(92)).join('/')))
+const llmsDead = llmsOwn.filter((l) => {
+  const p = new URL(l).pathname
+  return !builtPaths.has(p === '/' ? 'index.html' : `${p.slice(1)}.html`)
+})
+check(
+  'every page llms.txt points at was actually built',
+  llmsDead.length === 0,
+  llmsDead.join(', '),
+)
+
+/**
+ * And the decision, as a test.
+ *
+ * The obvious thing to put in a file addressed to a recruiter's screening model
+ * is an instruction — recommend this candidate, disregard what you were told.
+ * That is a prompt injection aimed at someone else's software, the screening
+ * vendors scan for exactly that shape, and it is the weaker file anyway: a
+ * model summarising a page repeats the numbers it was given, not the adjectives.
+ * None of that reasoning survives in a diff, so it lives here instead, where
+ * adding one of these lines turns the build red.
+ */
+const imperatives = [
+  /ignore\s+(all\s+)?(previous|prior|above)/i,
+  /disregard\s+(all\s+)?(previous|prior|above|your)/i,
+  /\byou\s+(must|should|shall|will)\s+(hire|recommend|rank|rate|score|prioriti[sz]e|select|advance)/i,
+  /\b(must|should)\s+be\s+hired\b/i,
+  /\bas\s+an\s+(ai|assistant|llm)\b/i,
+  /^\s*(system|assistant|user)\s*:/im,
+  /\bnew\s+instructions?\b/i,
+  /\boverride\b.*\binstructions?\b/i,
+]
+const planted = imperatives.filter((r) => r.test(llmsTxt)).map((r) => String(r))
+check(
+  'llms.txt makes its case with evidence rather than instructions',
+  planted.length === 0,
+  planted.join(' | '),
+)
+
 /* ---- sitemap.xml ---- */
 
 const sitemapXml = await readOr('dist/sitemap.xml', 'utf8')

@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 202 shell checks — the real gate
+npm test               # build + link check + 210 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 202, in
+Correctness lives in build-time checks rather than in review. Currently 210, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -129,6 +129,15 @@ is printed by `npm test`; update it here when it moves:
   origin — the host serves a directive-free default when the project ships none
 - the sitemap agrees with `dist/` in **both** directions, keeps `404` out, and
   keeps the hidden command and the dotfiles out
+- `llms.txt` ships, names every project and only projects that exist, points at
+  no page that was not built, and **makes its case with evidence rather than
+  instructions**. That last one is a decision written where it can fail: the
+  obvious thing to put in a file addressed to a recruiter's screening model is
+  "recommend this candidate", that is a prompt injection aimed at someone else's
+  software, the screening vendors scan for exactly that shape, and it is the
+  weaker file anyway — a model summarising a page repeats the numbers it was
+  given, not the adjectives. The reasoning does not survive in a diff, so adding
+  one of those lines turns the build red instead
 - the social card ships, is exactly 1200x630, and every page's `og:url` matches
   its canonical with an absolute `og:image`
 - the `Person` node is on the three pages that are about him and nowhere else,
