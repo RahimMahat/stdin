@@ -197,7 +197,7 @@ match their density rather than adding narration.
 
 ## Known defects
 
-- **`now/` expires on 2026-12-02.** The 90-day staleness rule is a schema
+- **`now/` expires on 2027-01-07.** The 90-day staleness rule is a schema
   refinement, so it fails the *build*, not a test — production stops deploying
   90 days after `updated:` in `src/content/now/current.md` with no code change.
   That is the intended design; the date is the part worth knowing in advance.
