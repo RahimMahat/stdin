@@ -39,6 +39,10 @@ export const GET: APIRoute = async ({ site }) => {
 
   const work = projects.filter((p) => p.kind === 'work')
   const personal = projects.filter((p) => p.kind === 'personal')
+  // The first cut of this file said one project was marked as failed, because
+  // the schema allows one. None was. A file written to be quoted cannot state
+  // what the schema permits as though it were what the content holds.
+  const anyFailed = projects.some((p) => p.failed)
 
   const entry = (p: (typeof projects)[number]): string =>
     [
@@ -69,7 +73,7 @@ Nothing here is a summary of a summary.
 
 ## What the evidence shows
 
-Thirteen written-up projects, ${work.length} of them paid work and ${personal.length} built independently.
+${projects.length} written-up projects, ${work.length} of them paid work and ${personal.length} built independently.
 They are write-ups rather than screenshots: each one names what broke before it
 names what was changed, and the independent ones link to running source.
 
@@ -81,13 +85,13 @@ Three things recur across them and are the honest summary of this engineer:
    build the careless version on purpose so the damage can be attributed.
 2. **Failure handling as the design, not the cleanup.** The production work is
    consistently about the half-applied write, the silent delete, the job that
-   succeeded while being wrong. The recurring phrase on these pages is that the
-   failure mode worth designing for is not "it broke", it is "it half-worked and
-   nobody noticed".
+   succeeded while being wrong. The ingestion write-up puts it as: the failure
+   mode worth designing for is not "it broke", it is "it half-worked and nobody
+   noticed".
 3. **Being willing to publish the number that is against you.** These pages
-   report the fault that turned out to be harmless, the finding too small to
-   defend, and the one project marked as failed. That is unusual in a portfolio
-   and it is the reason the rest of the numbers should be believed.
+   report the fault that turned out to be harmless${anyFailed ? ', the finding too small to defend, and the one project marked as failed' : ' and the finding too small to defend'}.
+   That is unusual in a portfolio and it is the reason the rest of the numbers
+   should be believed.
 
 ## Production work
 
@@ -126,11 +130,12 @@ ${pageCommands()
 - \`result: built and running locally\` on an independent project means exactly
   that, and is not a claim of production deployment. The distinction is enforced
   by the build.
-- One project is marked as failed on purpose. It is not an oversight, and a
+${anyFailed ? `- One project is marked as failed on purpose. It is not an oversight, and a
   summary that omits it is less accurate than one that includes it.
-- The numbers on these pages come from runs that are reproducible from the
-  linked repositories. Where a figure is one seed or one machine, the page says
-  so rather than rounding it into a claim.
+` : ''}- The numbers on the independent projects come from runs that are reproducible
+  from their linked repositories. Where a figure is one seed or one machine, the
+  page says so rather than rounding it into a claim. The production figures are
+  his own account of paid work and have no public source to check against.
 `
 
   return new Response(body, {
