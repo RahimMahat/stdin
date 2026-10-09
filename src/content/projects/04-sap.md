@@ -2,6 +2,8 @@
 title: "SAP object onboarding"
 slug: "sap"
 summary: "Ninety SAP services taken from \"it exists in SAP\" to \"it is a partitioned table in Athena\", through a fleet of 400+ AppFlow flows and a parameterised Glue job."
+hook: "90 SAP objects, 400+ flows, daily to hourly"
+featured: true
 order: 4
 started: 2024-04-26
 stack:

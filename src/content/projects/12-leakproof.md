@@ -2,6 +2,7 @@
 title: "Leakproof"
 slug: "leakproof"
 summary: "The same fraud model built carelessly and point-in-time correct, then both scored on live stream features. The careless one lost half its PR-AUC."
+hook: "0.999 offline, 0.901 live; the honest model held 0.947"
 order: 12
 started: 2026-10-08
 stack:

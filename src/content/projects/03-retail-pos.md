@@ -2,6 +2,8 @@
 title: "Retail point-of-sale ETL"
 slug: "retail-pos"
 summary: "Twenty-nine Glue processors that turn fourteen retail partners' sales and inventory files into one Redshift star schema, a feed at a time."
+hook: "29 processors across 14 retail partner feeds"
+featured: true
 order: 3
 started: 2023-06-30
 stack:

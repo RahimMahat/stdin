@@ -2,6 +2,7 @@
 title: "The landing zone"
 slug: "ingest"
 summary: "The ingestion layer of a multi-source AWS platform: Glue and PySpark for batch, and one contract every source meets before anything downstream reads it."
+hook: "50% lower end-to-end processing time"
 order: 1
 started: 2022-10-01
 stack:

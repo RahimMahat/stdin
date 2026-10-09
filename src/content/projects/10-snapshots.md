@@ -2,6 +2,7 @@
 title: "Daily snapshots"
 slug: "snapshots"
 summary: "Nine Athena queries that turn change-record tables into one current row per key, once a day, as partitioned Parquet."
+hook: "9 change-record tables to one current row per key, daily"
 order: 10
 started: 2025-10-14
 stack:

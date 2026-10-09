@@ -2,6 +2,7 @@
 title: "Flow operations utility"
 slug: "flowctl"
 summary: "A Lambda that suspends, reactivates, reschedules and reports on a fleet of more than 400 AppFlow flows, so nobody does it one flow at a time in the console."
+hook: "400+ flows suspended or rescheduled in one invocation"
 order: 9
 started: 2025-04-22
 stack:

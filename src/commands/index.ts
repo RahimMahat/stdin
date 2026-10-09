@@ -7,6 +7,7 @@ import { clear } from './clear'
 import { cmatrix } from './cmatrix'
 import { contact } from './contact'
 import { git } from './git'
+import { grep } from './grep'
 import { makeHelp } from './help'
 import { ls } from './ls'
 import { now } from './now'
@@ -23,7 +24,7 @@ export { canonical, runnable } from './naming'
  * routes, the help table, and (in phase 2) autocomplete all read from this list,
  * so there is no second place to keep in sync.
  */
-const base: Command[] = [whoami, ls, cat, skills, git, now, contact, theme, clear, cmatrix]
+const base: Command[] = [whoami, ls, cat, grep, skills, git, now, contact, theme, clear, cmatrix]
 
 const help = makeHelp(() => registry)
 
