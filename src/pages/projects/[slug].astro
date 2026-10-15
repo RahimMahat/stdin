@@ -2,7 +2,7 @@
 import Shell from '../../layouts/Shell.astro'
 import { loadSite } from '../../data/site'
 import { projectOutput } from '../../commands/cat'
-import { renderStatic, renderText } from '../../render/static'
+import { renderStatic } from '../../render/static'
 import type { Project } from '../../commands/types'
 
 /** `cat projects/<slug>` as a real document, one per project. */
@@ -20,7 +20,7 @@ const html = renderStatic(out)
 
 <Shell
   title={`cat projects/${project.slug}`}
-  description={renderText(out) || project.summary}
+  description={project.summary}
   command={`cat projects/${project.slug}`}
 >
   <Fragment set:html={html} />

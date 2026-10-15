@@ -23,7 +23,7 @@
   --matrix: #6ee79a; /* the masthead scramble and the `cmatrix` rain, and nothing else */
 
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --serif: 'Newsreader Variable', Georgia, 'Times New Roman', serif;
 
   --measure: 68ch;
   --step: 1.95; /* the baseline the whole session sits on */
@@ -582,6 +582,11 @@ a.cell:hover { text-decoration: underline; }
   .prose { font-size: 17.5px; }
   .masthead .explain { font-size: 18px; }
   .cmds.grid { grid-template-columns: minmax(0, 1fr); }
+  /* The notes run past 360px, and a tree that scrolls sideways inside its box
+     gives no sign it can, so it read as clipped. Let the note wrap instead;
+     the stems stay unbroken so the branches still line up. */
+  .tree { white-space: pre-wrap; overflow-x: visible; }
+  .tree .stem { white-space: pre; }
   .ac-label { display: none; }
   .ac { max-height: 11em; }
 

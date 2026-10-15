@@ -129,16 +129,3 @@ function node(n: Out): string {
 export function renderStatic(nodes: Out[]): string {
   return nodes.map(node).join('\n')
 }
-
-/** Plain-text rendering, for the &lt;meta name="description"&gt; of each command page. */
-export function renderText(nodes: Out[], limit = 155): string {
-  const parts: string[] = []
-  for (const n of nodes) {
-    if (n.t === 'line') parts.push(n.text)
-    else if (n.t === 'prose') parts.push(n.html.replace(/<[^>]+>/g, ' '))
-    else if (n.t === 'kv')
-      parts.push(n.pairs.map(([k, v]) => `${k}: ${typeof v === 'string' ? v : v.text}`).join(', '))
-  }
-  const s = parts.join(' ').replace(/\s+/g, ' ').trim()
-  return s.length > limit ? `${s.slice(0, limit - 1).trimEnd()}…` : s
-}

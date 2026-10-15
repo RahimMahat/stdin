@@ -2,7 +2,7 @@
 import Shell from '../layouts/Shell.astro'
 import { loadSite } from '../data/site'
 import { canonical, pageCommands, runForPage } from '../commands'
-import { renderStatic, renderText } from '../render/static'
+import { renderStatic } from '../render/static'
 import type { Command } from '../commands/types'
 
 /**
@@ -20,7 +20,14 @@ export async function getStaticPaths() {
 
 const { cmd, out } = Astro.props as { cmd: Command; out: ReturnType<typeof runForPage> }
 const html = renderStatic(out)
-const description = renderText(out) || cmd.summary
+// Written as a sentence rather than scraped from the output. The output is a
+// table or a record, and its first 155 characters made a snippet that read
+// "start here production · one AWS platform at Infocepts independent · s…".
+const { profile, projects } = await loadSite()
+const description =
+  cmd.name === 'ls'
+    ? `${projects.length} data engineering projects by ${profile.name}, each with what it handled, what broke and what changed.`
+    : `${profile.name}, ${profile.role}: ${cmd.summary}.`
 ---
 
 <Shell
