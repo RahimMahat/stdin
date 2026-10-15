@@ -457,10 +457,10 @@ check(
 const evidence = [...data0.projects.map((p) => p.stack.join(' ') + p.body), ...data0.roles.map((r) => r.body)]
   .join(' ')
   .toLowerCase()
-const unbacked = data0.profile.stack
+const unbackedTools = data0.profile.stack
   .flatMap((s) => s.split('+').map((t) => t.trim()))
   .filter((t) => !evidence.includes(t.toLowerCase()))
-check('every tool in the headline stack is backed by a project or role', unbacked.length === 0, unbacked.join(', '))
+check('every tool in the headline stack is backed by a project or role', unbackedTools.length === 0, unbackedTools.join(', '))
 
 // `now` counts the personal projects from the collection, then names each one
 // in prose that nothing computes. The count moving on its own would read "four
