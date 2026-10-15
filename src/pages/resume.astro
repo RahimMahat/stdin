@@ -1,40 +1,76 @@
 ---
 import Shell from '../layouts/Shell.astro'
 import { loadSite } from '../data/site'
-import { pageCommands, runForPage, canonical } from '../commands'
-import { projectOutput } from '../commands/cat'
-import { renderStatic } from '../render/static'
-import { rule, line } from '../render/ast'
-import type { Out } from '../render/ast'
+import { skills } from '../data/skills'
+import { mon, span } from '../commands/fmt'
 
 /**
  * The whole site as one linear document. This is where the skip-link goes, and
  * it is the page that has to work when everything else about the concept fails
  * to land — a visitor who wants the résumé and nothing else gets it here.
+ *
+ * Plain markup rather than command output, on purpose. It used to be every
+ * page's output pasted end to end, which made the escape hatch from the shell
+ * a 90 KB transcript of the shell: prompts, chips, "type this next", and not
+ * one heading below the h1. A résumé is navigated by section, so it is built
+ * from the same data as a document with sections.
  */
 const data = await loadSite()
-
-const sections: Out[] = []
-for (const cmd of pageCommands()) {
-  if (cmd.name === 'theme' || cmd.name === 'help') continue
-  sections.push(line(`$ ${canonical(cmd)}`, 'accent'))
-  sections.push(...runForPage(cmd, data))
-  sections.push(rule())
-}
-for (const p of data.projects) {
-  sections.push(line(`$ cat projects/${p.slug}`, 'accent'))
-  sections.push(...projectOutput(p, data))
-  sections.push(rule())
-}
-
-const html = renderStatic(sections)
+const p = data.profile
+const ext = { rel: 'noopener noreferrer' }
 ---
 
 <Shell
   title="resume"
-  description={`The complete résumé of ${data.profile.name}, ${data.profile.role}, as one plain document.`}
+  description={`The complete résumé of ${p.name}, ${p.role}, as one plain document.`}
   command="cat resume.txt"
   person={true}
 >
-  <Fragment set:html={html} />
+  <article class="cv">
+    <p class="cv-name">{p.name}</p>
+    <p>{p.role} · {p.years} · {p.location} · {p.availability}</p>
+    <p>
+      <a href={`mailto:${p.email}`}>{p.email}</a> ·
+      <a href={p.github} {...ext}>{p.github.replace(/^https?:\/\//, '')}</a> ·
+      <a href={p.linkedin} {...ext}>{p.linkedin.replace(/^https?:\/\//, '')}</a>
+    </p>
+
+    <h2>Summary</h2>
+    <div class="prose" set:html={p.bio} />
+
+    <h2>Experience</h2>
+    {data.roles.map((r) => (
+      <section>
+        <h3>{r.title}, {r.org}</h3>
+        <p class="o-dim">
+          {mon(r.start)} – {r.end ? mon(r.end) : 'present'} ({span(r.start, r.end)}) · {r.location}
+        </p>
+        <div class="prose" set:html={r.body} />
+      </section>
+    ))}
+
+    <h2>Projects</h2>
+    {data.projects.map((x) => (
+      <section>
+        <h3>{x.title}</h3>
+        <p class="o-dim">{x.kind === 'work' ? 'paid work at Infocepts' : 'independent'} · {x.stack.join(', ')}</p>
+        <p>{x.summary}</p>
+        <dl class="kv">
+          <dt>scale</dt><dd>{x.throughput}</dd>
+          <dt>impact</dt><dd>{x.latency}</dd>
+        </dl>
+        <p><a href={`/projects/${x.slug}`}>the full write-up →</a></p>
+      </section>
+    ))}
+
+    <h2>Skills</h2>
+    <dl class="kv">
+      {skills.children?.map((g) => (
+        <>
+          <dt>{g.label}</dt>
+          <dd>{g.children?.map((s) => (s.note ? `${s.label} (${s.note})` : s.label)).join(', ')}</dd>
+        </>
+      ))}
+    </dl>
+  </article>
 </Shell>
