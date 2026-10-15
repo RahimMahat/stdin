@@ -145,6 +145,19 @@ hr.out-rule {
   color: var(--dim);
 }
 
+/* ---- /resume: a document, so it gets document headings ---- */
+.cv { display: grid; gap: 0.6em; }
+.cv p { margin: 0; }
+.cv a { color: var(--accent); }
+.cv-name { color: var(--accent); font-size: 1.4em; }
+.cv h2 { font: inherit; color: var(--accent); margin: 1.6em 0 0.2em; border-bottom: 1px solid var(--rule); }
+.cv h3 { font: inherit; color: var(--ink); margin: 1em 0 0; }
+.cv section { display: grid; gap: 0.5em; }
+@media print {
+  .cv h3 { break-after: avoid; }
+  .cv section { break-inside: avoid; }
+}
+
 /* ---- key/value record ---- */
 .kv {
   display: grid;

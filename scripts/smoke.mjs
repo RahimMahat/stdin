@@ -980,6 +980,26 @@ check(
   landingHeading?.[1].join(' | '),
 )
 
+// /resume is the skip link's target and the page for someone who wants none of
+// the shell. It used to be every page's output pasted end to end: prompts,
+// chips, and no heading below the h1 in 90 KB.
+const resumeHtml = (await readFile('dist/resume.html', 'utf8')).replace(/<!--[\s\S]*?-->/g, '')
+const resumeMain = resumeHtml.slice(resumeHtml.indexOf('<article class="cv">'), resumeHtml.indexOf('</article>'))
+check(
+  '/resume is navigable by section',
+  ['Summary', 'Experience', 'Projects', 'Skills'].every((h) => resumeMain.includes(`<h2>${h}</h2>`)),
+  [...resumeMain.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1]).join(', '),
+)
+const missingRoles = data0.roles.filter((r) => !resumeMain.includes(r.body))
+check('and carries every role body, which no other page prints', missingRoles.length === 0, missingRoles.map((r) => r.title).join(', '))
+check(
+  'and none of the shell: no chips, no prompts',
+  resumeMain.length > 0 && !resumeMain.includes('data-cmd') && !/>\$ /.test(resumeMain) && !resumeMain.includes('rahim@stdin'),
+  'a command chip or a prompt line made it into the résumé',
+)
+const offResume = data0.projects.filter((p) => !resumeMain.includes(`href="/projects/${p.slug}"`))
+check('every project is on it, linked to its write-up', offResume.length === 0, offResume.map((p) => p.slug).join(', '))
+
 check(
   'the prompt is never read as the heading',
   headings.every(([, hs]) => hs.every((h) => !h.includes('rahim@stdin'))),
