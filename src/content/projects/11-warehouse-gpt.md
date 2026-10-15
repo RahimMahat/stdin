@@ -4,7 +4,7 @@ slug: "warehouse-gpt"
 summary: "A text-to-SQL agent, and an ablation suite built to measure why agents like it fail. Context took the smallest model from 63.5% to 98.0%."
 hook: "context took the smallest model from 63.5% to 98.0%"
 order: 11
-started: 2026-09-01
+started: 2026-09-27
 stack:
   - "LangGraph"
   - "dbt"

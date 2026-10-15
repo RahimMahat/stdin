@@ -3,6 +3,7 @@ updated: 2026-10-15
 building:
   - "lossproof — one CDC stream into two Iceberg lakes, faulted on purpose, then every row reconciled against the source"
   - "leakproof — the same fraud model built carelessly and point-in-time correct, both scored on features a live stream produced"
+  - "nightshift — a receipt-extraction lake with an LLM as an ETL step, and an agent on call measured against a 101-line runbook"
   - "this site, still — a terminal you can query instead of a portfolio you scroll"
 reading:
   - "Designing Data-Intensive Applications — the stream processing chapters, again"
@@ -11,7 +12,7 @@ learning:
   - "AWS Certified Solutions Architect – Associate, in progress"
 ---
 
-{Personal} projects in {weeks} weeks have turned into one method, mostly by accident:
+{Personal} projects since September have turned into one method, mostly by accident:
 build the careless version on purpose, measure exactly what it costs, and only
 then build the one that is correct. `warehouse-gpt` put a number on what context
 is worth to a text-to-SQL agent, `leakproof` on what leakage is worth to a fraud

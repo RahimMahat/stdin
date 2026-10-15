@@ -3,6 +3,8 @@ import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
 import type { Command, Ctx, Project, SiteData } from './types'
 
+export const dateLabel = (p: Project): string => (p.kind === 'personal' ? 'published' : 'started')
+
 /** Shared by the `cat` command and by /projects/<slug> page generation. */
 export function projectOutput(p: Project, data: SiteData): Out[] {
   // Nearest by order, same kind first. Taking the first three of the list sent
@@ -16,7 +18,10 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
     line(p.summary, 'dim'),
     blank(),
     kv([
-      ['started', ymd(p.started)],
+      // A personal project's date is the day its repository went public, which
+      // is not when the work began. Calling it `started` claimed more than the
+      // date knows.
+      [dateLabel(p), ymd(p.started)],
       ['stack', p.stack.join(', ')],
       ['scale', p.throughput],
       // The field is called `latency` in the schema, but most of what it holds is
