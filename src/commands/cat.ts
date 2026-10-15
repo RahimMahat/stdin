@@ -1,6 +1,7 @@
 import { blank, cmds, kv, line, prose, rule, type KvValue, type Out } from '../render/ast'
 import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
+import { search } from './fuzzy'
 import type { Command, Ctx, Project, SiteData } from './types'
 
 /** Shared by the `cat` command and by /projects/<slug> page generation. */
@@ -45,16 +46,18 @@ export const cat: Command = {
   // are generated from the projects collection instead.
   page: false,
   run({ args, data }: Ctx): Out[] {
-    const raw = args[0] ?? ''
+    // `ls -a` lists the dotfiles from `~`, which is where the prompt says it is.
+    const typed = args[0] ?? ''
+    const raw = typed.replace(/^~\//, '')
 
     // Dotfiles first: `cat .plan` must not be mistaken for a project slug.
     // These have no page and never will — a URL would let a crawler index the
     // one thing on this site that is supposed to be earned.
     if (raw.startsWith('.') && !raw.startsWith('./projects')) {
       const file = findHidden(raw)
-      if (!file) return [line(`cat: ${raw}: no such file`, 'fail')]
+      if (!file) return [line(`cat: ${typed}: no such file`, 'fail')]
       if (file.body === null) {
-        return [line(`cat: ${raw}: permission denied`, 'fail'), line('nice try.', 'dim')]
+        return [line(`cat: ${typed}: permission denied`, 'fail'), line('nice try.', 'dim')]
       }
       return [
         line(file.name, 'accent'),
@@ -63,7 +66,17 @@ export const cat: Command = {
       ]
     }
 
-    const target = raw.replace(/^\.?\/?projects\//, '').replace(/\/$/, '')
+    // /resume is headed `cat resume.txt`, so that line has to work when typed.
+    // It points at the page rather than printing it: the résumé is every other
+    // command's output in sequence, and a shell has those already.
+    if (/^resume(\.txt)?$/i.test(raw)) {
+      return [
+        line('resume.txt is a page rather than output: the whole site as one plain document.', 'dim'),
+        kv([['open', { text: '/resume', href: '/resume' }]]),
+      ]
+    }
+
+    const target = raw.replace(/^\.?\/?projects\//, '').replace(/\/$/, '').toLowerCase()
     if (!target) {
       return [
         line('cat: needs a file', 'fail'),
@@ -74,11 +87,15 @@ export const cat: Command = {
     }
     const p = data.projects.find((x) => x.slug === target)
     if (!p) {
+      // The nearest few, and all of them only when nothing is near: fourteen
+      // suggestions is a listing, not an answer.
+      const all = data.projects.map((x) => ({ value: x.slug, label: x.summary }))
+      const near = search(all, target, 3)
       return [
-        line(`cat: projects/${target}: no such file`, 'fail'),
+        line(`cat: ${typed}: no such file`, 'fail'),
         blank(),
         line('did you mean:', 'dim'),
-        cmds(data.projects.map((x) => ({ name: `cat projects/${x.slug}` }))),
+        cmds((near.length ? near : all).map((x) => ({ name: `cat projects/${x.value}` }))),
       ]
     }
     return projectOutput(p, data)

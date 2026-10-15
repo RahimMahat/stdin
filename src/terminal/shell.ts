@@ -96,7 +96,11 @@ class Shell {
       .then((d) => {
         this.data = d
         this.els.input.disabled = false
-        this.els.input.placeholder = 'type a command — tab completes, ↑ recalls'
+        // A phone has no tab key and no arrows to recall with. Same question
+        // effects/rain.ts asks to decide its exit hint.
+        this.els.input.placeholder = window.matchMedia?.('(hover: none)').matches
+          ? 'type a command'
+          : 'type a command — tab completes, ↑ recalls'
       })
       .catch(() => {
         // The links on the page are all still real. Say so rather than leaving
@@ -208,24 +212,35 @@ class Shell {
         }
         return
 
+      // Tab is held only for a press that changes something. Any other press
+      // belongs to the browser, or a keyboard user who tabs in can never tab
+      // back out — every link after the prompt becomes unreachable.
       case 'Tab': {
-        if (!this.data) return
-        e.preventDefault()
-        if (this.active >= 0 && this.items[this.active]) {
+        if (!this.data || e.shiftKey) return
+        const value = this.els.input.value
+        if (open && this.active >= 0 && this.items[this.active]) {
+          e.preventDefault()
           this.accept(this.items[this.active].value)
           return
         }
-        const items = suggest(this.els.input.value, this.data)
-        if (items.length === 1) {
+        const items = value.trim() ? suggest(value, this.data) : []
+        if (items.length === 1 && items[0].value !== value) {
+          e.preventDefault()
           this.accept(items[0].value)
           return
         }
-        const shared = commonPrefix(items, this.els.input.value)
+        const shared = commonPrefix(items, value)
         if (shared) {
+          e.preventDefault()
           this.els.input.value = shared
           this.draft = shared
+          this.refreshList()
+          return
         }
-        this.refreshList()
+        if (items.length > 1 && !open) {
+          e.preventDefault()
+          this.refreshList()
+        }
         return
       }
 

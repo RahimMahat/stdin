@@ -88,9 +88,11 @@ const doc = window.document
 // Most assertions care about *what* was rendered, not how it arrived, so the
 // reveal runs instantly. One test below flips this to exercise the animated path.
 let reducedMotion = true
-window.matchMedia = () => ({
+// Per query: the shell asks whether it is on a phone too, and a stub that said
+// yes to everything had the desktop run reading the phone placeholder.
+window.matchMedia = (q) => ({
   get matches() {
-    return reducedMotion
+    return q.includes('reduce') ? reducedMotion : false
   },
   addEventListener() {},
   removeEventListener() {},
@@ -176,6 +178,22 @@ input.dispatchEvent(new window.Event('focus'))
 await settle()
 check('focus triggers the load', fetched === 1, `${fetched} requests`)
 check('input enabled once data loaded', input.disabled === false, `placeholder: ${input.placeholder}`)
+check('a keyboard is told what tab and ↑ do', /tab completes/.test(input.placeholder), input.placeholder)
+
+// A phone has neither key. The placeholder is set once, at load, so it takes a
+// shell of its own to see it.
+{
+  const pd = new JSDOM(html, { runScripts: 'outside-only', url: 'https://rahim-stdin.pages.dev/whoami', pretendToBeVisual: true })
+  pd.window.matchMedia = (q) => ({ matches: q.includes('hover: none'), addEventListener() {}, removeEventListener() {} })
+  pd.window.fetch = async () => ({ ok: true, status: 200, json: async () => JSON.parse(siteJson) })
+  pd.window.eval(code)
+  pd.window.__t.mount()
+  const pin = pd.window.document.querySelector('#tty-in')
+  pin.dispatchEvent(new pd.window.Event('focus'))
+  await new Promise((r) => pd.window.setTimeout(r, 60))
+  check('a phone is not told about keys it does not have', pin.placeholder && !/tab|↑/.test(pin.placeholder), pin.placeholder)
+  pd.window.close()
+}
 
 /* --- running a command --- */
 type(input, 'ls projects/')
@@ -272,6 +290,35 @@ check(
 )
 check('a missing project reports itself', !!last()?.querySelector('.o-fail'))
 
+const aSlug = data0.projects[0].slug
+check(
+  'a project name is not case-sensitive',
+  T.run(`cat projects/${aSlug.toUpperCase()}`, data0)[0]?.text === data0.projects[0].title &&
+    T.pageFor(`cat projects/${aSlug.toUpperCase()}`, data0.projects.map((p) => p.slug)) === `/projects/${aSlug}`,
+)
+const nearMiss = T.run(`cat projects/${aSlug.slice(0, -1)}`, data0).find((n) => n.t === 'cmds')?.items ?? []
+check(
+  'a near miss offers the near few, not the whole directory',
+  nearMiss.length > 0 && nearMiss.length <= 3 && nearMiss.some((i) => i.name === `cat projects/${aSlug}`),
+  nearMiss.map((i) => i.name).join(' | '),
+)
+
+// /resume is headed `cat resume.txt`. A heading that errors when typed is the
+// one command on the site a visitor is shown and cannot run.
+const resumeOut = T.run('cat resume.txt', data0)
+check(
+  'cat resume.txt points at the résumé instead of failing',
+  !resumeOut.some((n) => n.tone === 'fail') &&
+    resumeOut.some((n) => n.t === 'kv' && n.pairs.some(([, v]) => v.href === '/resume')),
+)
+
+// The echoed line is a flex row, and a flex item will not shrink below its
+// longest word unless told to — a pasted URL took the page 45,000px wide.
+check(
+  'a long line wraps rather than widening the page',
+  /\.typed\{[^}]*min-width:0[^}]*overflow-wrap:anywhere/.test(cssNorm),
+)
+
 // The prefix is derived, not written down. This asserted `cat projects/pl` ->
 // `platform` until a project called `planning` landed and made that prefix
 // ambiguous — the completion was right and the test was wrong. What is being
@@ -281,6 +328,27 @@ const soleMatch = slugs.find((s) => slugs.filter((o) => o.startsWith(s.slice(0, 
 type(input, `cat projects/${soleMatch.slice(0, 4)}`)
 key(input, 'Tab')
 check('tab completes a unique match', input.value === `cat projects/${soleMatch}`, input.value)
+
+/**
+ * Tab is the browser's unless the press changes something. It was held on
+ * every press once, which made the prompt a keyboard trap: a visitor who tabbed
+ * in could not reach a single link after it. Each case is a real key event,
+ * because what matters is whether the browser was allowed to move focus.
+ */
+const tabFree = (value, init = {}) => {
+  type(input, value)
+  const ev = new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true, ...init })
+  input.dispatchEvent(ev)
+  return !ev.defaultPrevented
+}
+check('tab leaves an empty prompt', tabFree(''))
+check('tab leaves a prompt with nothing to complete', tabFree('xyz'))
+check('tab leaves a command already complete', tabFree('whoami'))
+check('shift+tab always leaves', tabFree('who', { shiftKey: true }))
+check('tab still completes when there is something to complete', !tabFree('who') && input.value === 'whoami', input.value)
+// Typing `c` already shows the list, and nothing longer is shared, so a second
+// Tab would change nothing — holding it is the trap again, one keystroke later.
+check('tab lets go once an ambiguous list is already showing', tabFree('c'))
 
 type(input, 'the')
 key(input, 'Escape')
@@ -292,6 +360,41 @@ check(
   'tight matches outrank scattered ones',
   ranked[0]?.value.startsWith('theme'),
   ranked.map((r) => r.value).join(' | '),
+)
+check(
+  'a prefix match is the only match',
+  T.suggest('who', data0).map((s) => s.value).join() === 'whoami' &&
+    T.suggest('gr', data0).map((s) => s.value).join() === 'grep',
+  `who: ${T.suggest('who', data0).map((s) => s.value).join(' | ')}; gr: ${T.suggest('gr', data0).map((s) => s.value).join(' | ')}`,
+)
+
+// Subsequence matching cannot see a typo: `hlep` is not a subsequence of
+// `help`. These are the ones that used to answer with nothing at all.
+const meant = (q) => T.run(q, data0).find((n) => n.t === 'cmds')?.items.map((i) => i.name) ?? []
+const typos = {
+  hlep: 'help',
+  hepl: 'help',
+  helo: 'help',
+  whomai: 'whoami',
+  conatct: 'contact',
+  contacts: 'contact',
+  'gti log': 'git log',
+  'gerp glue': 'grep glue',
+  nwo: 'now',
+}
+const missed = Object.entries(typos).filter(([q, want]) => meant(q)[0] !== want)
+check(
+  'a typo is answered with the command it meant, arguments kept',
+  missed.length === 0,
+  missed.map(([q, want]) => `${q} -> [${meant(q).join(', ')}], wanted ${want}`).join('; '),
+)
+check(
+  'a suggested correction runs',
+  Object.keys(typos).every((q) => !T.run(meant(q)[0], data0).some((n) => n.t === 'line' && /command not found/.test(n.text))),
+)
+check(
+  'a typo never offers the hidden command',
+  !Object.keys(typos).concat('cmatirx').some((q) => meant(q).includes('cmatrix')),
 )
 
 /* --- theme --- */
@@ -545,6 +648,13 @@ check('the file keeps its line breaks', plan.filter((n) => n.t === 'blank').leng
 const env = T.run('cat .env', data0)
 check('cat .env refuses in character', textOf(env).includes('permission denied') && textOf(env).includes('nice try'))
 check('an unknown dotfile is not invented', textOf(T.run('cat .nope', data0)).includes('no such file'))
+check('the dotfiles are where ls -a says they are', textOf(T.run('cat ~/.plan', data0)) === textOf(plan))
+check(
+  'an error names the path as typed',
+  textOf(T.run('cat ~/.nope', data0)).includes('cat: ~/.nope: no such file') &&
+    textOf(T.run('cat nope', data0)).includes('cat: nope: no such file'),
+  textOf(T.run('cat ~/.nope', data0)),
+)
 
 // The three ways it could leak.
 check('help never mentions a dotfile', !textOf(T.run('help', data0)).includes('.plan'))
