@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-09
+updated: 2026-10-15
 building:
   - "lossproof — one CDC stream into two Iceberg lakes, faulted on purpose, then every row reconciled against the source"
   - "leakproof — the same fraud model built carelessly and point-in-time correct, both scored on features a live stream produced"
@@ -11,13 +11,14 @@ learning:
   - "AWS Certified Solutions Architect – Associate, in progress"
 ---
 
-Three projects in six weeks have turned into one method, mostly by accident:
+{Personal} projects in {weeks} weeks have turned into one method, mostly by accident:
 build the careless version on purpose, measure exactly what it costs, and only
 then build the one that is correct. `warehouse-gpt` put a number on what context
 is worth to a text-to-SQL agent, `leakproof` on what leakage is worth to a fraud
-model, `lossproof` on what an ordinary week costs a change-data-capture lake.
+model, `lossproof` on what an ordinary week costs a change-data-capture lake, and
+`nightshift` on what an on-call agent is worth next to a plain runbook.
 
-The through-line is the same conviction four years of moving data left me with —
+The through-line is the same conviction {years} years of moving data left me with —
 the hard part of applied AI is not the model, it is getting the right data to the
 right place, on time, in a shape someone can trust. What has changed is that I
 would now rather count that than assert it, which is why each of these ships the

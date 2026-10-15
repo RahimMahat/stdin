@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 230 shell checks — the real gate
+npm test               # build + link check + 231 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 230, in
+Correctness lives in build-time checks rather than in review. Currently 231, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -185,6 +185,12 @@ is printed by `npm test`; update it here when it moves:
   of the window. The `matchMedia` stub in the suite answers per query for this
   reason; one that answers every question alike had the reduced-motion run
   claiming to be a phone too
+- counts in hand-written prose are `{tokens}` filled from the collections in
+  `src/data/site.ts` (`{personal}`, `{weeks}`, `{years}`; capitalised for a
+  sentence start), and an unknown token fails the build. `now` then names each
+  personal project in prose nothing computes, so a check fails until every one
+  it counts is named — a computed count over a hand-written list is the same
+  drift with a newer number
 - the boot log is checked against the collections it claims to have counted,
   and never reaches a visitor without JavaScript
 
@@ -220,7 +226,7 @@ match their density rather than adding narration.
 
 ## Known defects
 
-- **`now/` expires on 2027-01-07.** The 90-day staleness rule is a schema
+- **`now/` expires on 2027-01-13.** The 90-day staleness rule is a schema
   refinement, so it fails the *build*, not a test — production stops deploying
   90 days after `updated:` in `src/content/now/current.md` with no code change.
   That is the intended design; the date is the part worth knowing in advance.

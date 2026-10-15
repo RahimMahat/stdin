@@ -15,6 +15,27 @@ import { profile as rawProfile } from './profile'
 
 const md = (s: string): string => marked.parse(s, { async: false }).trim()
 
+const DAY = 86_400_000
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+
+/**
+ * Replaces `{name}` in hand-written prose with a number computed from the
+ * collections, spelled as a word because the prose spells them. `{Name}`
+ * capitalises it, for the start of a sentence. The `now` paragraph said "three
+ * projects" for a week after there were four; a count typed into prose is a
+ * count nobody updates. An unknown token fails the build rather than shipping
+ * its braces.
+ */
+function filler(facts: Record<string, number>) {
+  return (s: string): string =>
+    s.replace(/\{(\w+)\}/g, (_, k: string) => {
+      const n = facts[k.toLowerCase()]
+      if (n === undefined) throw new Error(`{${k}} in prose names no fact. Known: ${Object.keys(facts).join(', ')}.`)
+      const w = WORDS[n] ?? String(n)
+      return k[0] === k[0].toUpperCase() ? w[0].toUpperCase() + w.slice(1) : w
+    })
+}
+
 let cached: SiteData | null = null
 
 export async function loadSite(): Promise<SiteData> {
@@ -48,14 +69,26 @@ export async function loadSite(): Promise<SiteData> {
     // git log order: newest first.
     .sort((a, b) => b.start.getTime() - a.start.getTime())
 
+  const personal = projects.filter((p) => p.kind === 'personal').map((p) => p.started.getTime())
+  const facts = {
+    personal: personal.length,
+    // The span they were started across. A partial week still counts as one.
+    weeks: Math.ceil((Math.max(...personal) - Math.min(...personal)) / (7 * DAY)),
+    // Whole years since the first role began, as of the build. The `now`
+    // staleness rule guarantees a build at least every 90 days, so this is
+    // never more than a season behind.
+    years: Math.floor((Date.now() - Math.min(...roles.map((r) => r.start.getTime()))) / (365.25 * DAY)),
+  }
+  const fill = filler(facts)
+
   const nowEntry = nowEntries[0]
   if (!nowEntry) throw new Error('src/content/now/ is empty — the `now` command has nothing to print.')
   if (nowEntries.length > 1) {
     throw new Error('src/content/now/ holds more than one entry. There is only one now.')
   }
-  const now: NowData = { ...nowEntry.data, body: md(nowEntry.body ?? '') }
+  const now: NowData = { ...nowEntry.data, body: md(fill(nowEntry.body ?? '')) }
 
-  const profile = { ...rawProfile, bio: md(rawProfile.bio) }
+  const profile = { ...rawProfile, years: `${facts.years}+ yrs`, bio: md(fill(rawProfile.bio)) }
 
   cached = { profile, projects, roles, now }
   return cached
