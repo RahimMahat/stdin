@@ -39,13 +39,13 @@ const out = renderStatic([
     true,
   ),
   blank(),
-  line('`help` lists every command. every one of them is also a real URL.', 'dim'),
+  line('`help` lists every command, and which of them are pages.', 'dim'),
 ])
 ---
 
 <Shell
   title="404"
-  description={`No such path on ${data.profile.name}'s site. Every command is a real URL — these are the ones that resolve.`}
+  description={`No such path on ${data.profile.name}'s site. These are the pages that resolve.`}
   error="404 — no such file or directory"
   robots="noindex"
 >

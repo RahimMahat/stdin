@@ -37,7 +37,7 @@ export const theme: Command = {
     }
 
     return [
-      line('dark is the default. light is the warm paper from the original brief.', 'dim'),
+      line('dark is the default. light is warm paper.', 'dim'),
       blank(),
       cmds([
         { name: 'theme dark', label: 'deep slate — default' },
@@ -45,6 +45,10 @@ export const theme: Command = {
       ]),
       blank(),
       line('bare `theme` flips whichever is active. the choice persists across visits.', 'dim'),
+      // These two chips are this page linking to itself. With javascript they
+      // switch; without it nothing can, and the page should say so rather than
+      // offer two links that reload it.
+      line('switching needs javascript. without it the site stays dark.', 'dim'),
     ]
   },
 }
