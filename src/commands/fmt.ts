@@ -38,7 +38,3 @@ export function shortHash(seed: string): string {
   }
   return h.toString(16).padStart(8, '0').slice(0, 7)
 }
-
-export function daysAgo(d: Date): number {
-  return Math.floor((Date.now() - d.getTime()) / 86_400_000)
-}

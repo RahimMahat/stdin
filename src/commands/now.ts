@@ -1,5 +1,5 @@
 import { blank, kv, line, prose, type Out } from '../render/ast'
-import { daysAgo, ymd } from './fmt'
+import { ymd } from './fmt'
 import type { Command, Ctx } from './types'
 
 export const now: Command = {
@@ -8,9 +8,11 @@ export const now: Command = {
   page: true,
   run({ data }: Ctx): Out[] {
     const n = data.now
-    const age = daysAgo(n.updated)
     return [
-      line(`last updated ${ymd(n.updated)} — ${age} day${age === 1 ? '' : 's'} ago`, age > 45 ? 'fail' : 'dim'),
+      // The date only, no "n days ago". The static page is rendered once, at
+      // build, and served for up to ninety days after it; an age printed there
+      // says 0 for all ninety, and disagrees with the same command typed live.
+      line(`last updated ${ymd(n.updated)}`, 'dim'),
       blank(),
       kv([
         ['building', n.building.join('; ')],
