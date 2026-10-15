@@ -517,6 +517,31 @@ check(
   resultIn(withKind('personal')),
 )
 
+// Most of what the schema calls `latency` is an outcome, and the label printed
+// "latency: 40% less manual effort per deployment".
+const labels = data0.projects.flatMap((p) => T.run(`cat projects/${p.slug}`, data0).find((n) => n.t === 'kv')?.pairs.map(([k]) => k) ?? [])
+check('no project page labels its outcome latency', !labels.includes('latency'), [...new Set(labels)].join(', '))
+
+// Related projects were the first three in the list on every page, so a
+// personal write-up pointed only at Infocepts work.
+const offKind = data0.projects.filter((p) => {
+  const same = data0.projects.filter((s) => s.kind === p.kind && s.slug !== p.slug).length
+  const related = T.run(`cat projects/${p.slug}`, data0).findLast((n) => n.t === 'cmds')?.items ?? []
+  const kinds = related.map((i) => data0.projects.find((s) => `cat projects/${s.slug}` === i.name)?.kind)
+  return kinds.slice(0, Math.min(same, 3)).some((k) => k !== p.kind)
+})
+check('related projects share the page kind when enough exist', offKind.length === 0, offKind.map((p) => p.slug).join(', '))
+
+// The leakproof summary said "lost half its PR-AUC" while every figure on the
+// page was an unnamed ROC-AUC. A metric the summary names has to be stated, with
+// a number, somewhere other than the summary.
+const unbacked = data0.projects.filter((p) => {
+  const metrics = p.summary.match(/\b[A-Z]{2,}-AUC\b/g) ?? []
+  const rest = [p.throughput, p.latency, p.body, p.broke, p.fixed].join(' ')
+  return metrics.some((m) => !new RegExp(`\\d\\.\\d+[^.;]{0,40}${m}|${m}[^.;]{0,40}\\d\\.\\d+`).test(rest))
+})
+check('a metric a summary names is stated with a figure on its page', unbacked.length === 0, unbacked.map((p) => p.slug).join(', '))
+
 /* ---------------------------------------------------------------- */
 /* the dotfiles                                                      */
 /*                                                                   */

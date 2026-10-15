@@ -18,11 +18,9 @@ fixed: "Moved account-level infrastructure into Terraform and application-couple
 failed: false
 ---
 
-**The problem.** The pipelines were code and the infrastructure they ran on was
-not. Environments were assembled by hand, which meant they drifted, which meant
-"works in dev" carried no information. Onboarding a new environment was an
-exercise in remembering, and the only real documentation was whoever had done it
-last.
+**The problem.** Infrastructure that exists only as a sequence of clicks cannot
+be reviewed, diffed or rebuilt. Onboarding a new environment was an exercise in
+remembering.
 
 **The architecture.** Terraform for the long-lived account-level infrastructure,
 AWS CDK where the resources are tightly coupled to application code, and a shared

@@ -19,10 +19,8 @@ failed: false
 ---
 
 **The problem.** Ingestion solved getting data in. It did not solve anyone being
-able to use it. Analysts were querying close to raw tables, which meant every
-dashboard encoded its own quiet interpretation of what a metric meant, and two
-dashboards could disagree without either being wrong. Query cost and query time
-were both climbing for reasons nobody could point at.
+able to use it: the data was all there, and what it meant depended on which
+dashboard you happened to open.
 
 **The architecture.** Curated data lands in Redshift as modelled tables rather
 than as mirrors of the source systems. Denodo sits above that as a

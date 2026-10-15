@@ -5,7 +5,12 @@ import type { Command, Ctx, Project, SiteData } from './types'
 
 /** Shared by the `cat` command and by /projects/<slug> page generation. */
 export function projectOutput(p: Project, data: SiteData): Out[] {
-  const siblings = data.projects.filter((s) => s.slug !== p.slug).slice(0, 3)
+  // Nearest by order, same kind first. Taking the first three of the list sent
+  // every page, the personal ones included, to the same three work projects.
+  const siblings = data.projects
+    .filter((s) => s.slug !== p.slug)
+    .sort((a, b) => Number(a.kind !== p.kind) - Number(b.kind !== p.kind) || Math.abs(a.order - p.order) - Math.abs(b.order - p.order))
+    .slice(0, 3)
   return [
     line(p.title, 'accent'),
     line(p.summary, 'dim'),
@@ -14,7 +19,9 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
       ['started', ymd(p.started)],
       ['stack', p.stack.join(', ')],
       ['scale', p.throughput],
-      ['latency', p.latency],
+      // The field is called `latency` in the schema, but most of what it holds is
+      // an outcome — "40% less manual effort" printed under "latency" is wrong.
+      ['outcome', p.latency],
       // `result` answers "how did it go", and for something built on my own
       // time the honest answer is not "in production" — there is no production.
       ['result', p.failed ? 'failed — post-mortem below' : p.kind === 'personal' ? 'built and running locally' : 'in production'],
