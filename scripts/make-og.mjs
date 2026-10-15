@@ -148,6 +148,15 @@ if (r.status !== 0 || !existsSync(shot)) {
   process.exit(1)
 }
 
-copyFileSync(shot, 'public/og.png')
+// Chrome writes a 24-bit PNG of about 210 KB. The card is flat colour and
+// type, so a 256-colour palette is visually identical at a fifth of the size,
+// and every unfurl downloads it. sharp arrives with astro; without it, ship
+// the screenshot as it came.
+try {
+  const { default: sharp } = await import('sharp')
+  await sharp(shot).png({ palette: true, quality: 90, compressionLevel: 9, effort: 10 }).toFile('public/og.png')
+} catch {
+  copyFileSync(shot, 'public/og.png')
+}
 rmSync(dir, { recursive: true, force: true })
 console.log('wrote public/og.png (1200x630)')
