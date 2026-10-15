@@ -442,6 +442,26 @@ check(
   `${workCount} work, ${data0.projects.length - workCount} personal`,
 )
 
+// A personal project's date is when its repository went public. Labelled
+// `started`, four of them read as begun within a fortnight of each other.
+const datesRow = (p) => T.run(`cat projects/${p.slug}`, data0).find((n) => n.t === 'kv')?.pairs[0]?.[0]
+const misdated = data0.projects.filter((p) => datesRow(p) !== (p.kind === 'personal' ? 'published' : 'started'))
+check(
+  'personal projects say published, work projects say started',
+  misdated.length === 0,
+  misdated.map((p) => `${p.slug}: ${datesRow(p)}`).join(', '),
+)
+
+// The headline stack is the first claim a reader sees. Snowflake sat in it
+// for months while no project or role so much as mentioned it.
+const evidence = [...data0.projects.map((p) => p.stack.join(' ') + p.body), ...data0.roles.map((r) => r.body)]
+  .join(' ')
+  .toLowerCase()
+const unbacked = data0.profile.stack
+  .flatMap((s) => s.split('+').map((t) => t.trim()))
+  .filter((t) => !evidence.includes(t.toLowerCase()))
+check('every tool in the headline stack is backed by a project or role', unbacked.length === 0, unbacked.join(', '))
+
 // `now` counts the personal projects from the collection, then names each one
 // in prose that nothing computes. The count moving on its own would read "four
 // projects" over a list of three, which is the same drift with a newer number.

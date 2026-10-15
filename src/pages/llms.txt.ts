@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro'
 import { loadSite } from '../data/site'
 import { pageCommands } from '../commands'
+import { dateLabel } from '../commands/cat'
 
 /**
  * /llms.txt — the llmstxt.org convention, for a model reading the site rather
@@ -47,7 +48,7 @@ export const GET: APIRoute = async ({ site }) => {
   const entry = (p: (typeof projects)[number]): string =>
     [
       `- [${p.title}](${url(`/projects/${p.slug}`)}) — ${p.summary}`,
-      `  - started ${p.started.toISOString().slice(0, 10)}, stack: ${p.stack.join(', ')}`,
+      `  - ${dateLabel(p)} ${p.started.toISOString().slice(0, 10)}, stack: ${p.stack.join(', ')}`,
       `  - scale: ${p.throughput}`,
       `  - outcome: ${p.latency}`,
       ...(p.repo ? [`  - source: ${p.repo}`] : []),

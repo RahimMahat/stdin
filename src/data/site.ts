@@ -69,11 +69,8 @@ export async function loadSite(): Promise<SiteData> {
     // git log order: newest first.
     .sort((a, b) => b.start.getTime() - a.start.getTime())
 
-  const personal = projects.filter((p) => p.kind === 'personal').map((p) => p.started.getTime())
   const facts = {
-    personal: personal.length,
-    // The span they were started across. A partial week still counts as one.
-    weeks: Math.ceil((Math.max(...personal) - Math.min(...personal)) / (7 * DAY)),
+    personal: projects.filter((p) => p.kind === 'personal').length,
     // Whole years since the first role began, as of the build. The `now`
     // staleness rule guarantees a build at least every 90 days, so this is
     // never more than a season behind.

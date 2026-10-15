@@ -3,6 +3,8 @@ import { findHidden } from '../data/hidden'
 import { ymd } from './fmt'
 import type { Command, Ctx, Project, SiteData } from './types'
 
+export const dateLabel = (p: Project): string => (p.kind === 'personal' ? 'published' : 'started')
+
 /** Shared by the `cat` command and by /projects/<slug> page generation. */
 export function projectOutput(p: Project, data: SiteData): Out[] {
   const siblings = data.projects.filter((s) => s.slug !== p.slug).slice(0, 3)
@@ -11,7 +13,10 @@ export function projectOutput(p: Project, data: SiteData): Out[] {
     line(p.summary, 'dim'),
     blank(),
     kv([
-      ['started', ymd(p.started)],
+      // A personal project's date is the day its repository went public, which
+      // is not when the work began. Calling it `started` claimed more than the
+      // date knows.
+      [dateLabel(p), ymd(p.started)],
       ['stack', p.stack.join(', ')],
       ['scale', p.throughput],
       ['latency', p.latency],

@@ -22,7 +22,7 @@ export const skills: TreeNode = {
       children: [
         { label: 'PySpark' },
         { label: 'dbt' },
-        { label: 'SQL', note: 'Redshift, Snowflake' },
+        { label: 'SQL', note: 'Redshift' },
         { label: 'Python', note: 'the glue between all of it' },
       ],
     },
@@ -37,7 +37,6 @@ export const skills: TreeNode = {
       label: 'storage',
       children: [
         { label: 'Amazon Redshift' },
-        { label: 'Snowflake', note: 'SnowPro Core certified' },
         { label: 'Amazon S3', note: 'landing and curated zones' },
         { label: 'Denodo', note: 'virtualization over the warehouse' },
       ],
