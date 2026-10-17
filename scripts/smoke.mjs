@@ -960,6 +960,53 @@ check(
   relativeCards.join(', '),
 )
 
+// The description is the snippet under the link in a search result and the
+// line under the card in a share. It used to be the first 155 characters of
+// the output, which on /ls read "start here production · one AWS platform at
+// Infocepts independent · source linked cat one for the write-up: the a…".
+const badDescriptions = []
+for (const f of builtPages) {
+  const html = await readFile(`dist/${f}`, 'utf8')
+  const d = (html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? '')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+  if (d.length > 160 || /…$/.test(d) || !/[.!?]$/.test(d)) badDescriptions.push(`${f}: ${d}`)
+}
+check(
+  'every description is one finished sentence of 160 characters or less',
+  badDescriptions.length === 0,
+  badDescriptions.join('\n    '),
+)
+
+/* ---- what ships ---- */
+
+const shipped = await Promise.all(builtPages.map(async (f) => [f, await readFile(`dist/${f}`, 'utf8')]))
+
+// Template comments are for whoever edits the template. Written as HTML
+// comments they were a third of every page's bytes, sent to every visitor.
+const commented = shipped.filter(([, h]) => h.includes('<!--')).map(([f]) => f)
+check('no page ships an HTML comment', commented.length === 0, commented.join(', '))
+
+// A script placed after the layout lands after </html>, which a browser
+// forgives and a validator does not.
+const trailing = shipped.filter(([, h]) => h.trimEnd().slice(h.lastIndexOf('</html>')) !== '</html>').map(([f]) => f)
+check('nothing is emitted after </html>', trailing.length === 0, trailing.join(', '))
+
+// The footer says "no trackers". A request to a third party on every page view
+// is one, whatever it is for.
+const thirdParty = shipped.filter(([, h]) => /fonts\.(googleapis|gstatic)\.com/.test(h)).map(([f]) => f)
+check('fonts are served from the site, not from Google', thirdParty.length === 0, thirdParty.join(', '))
+
+// Pages serves everything max-age=0 by default, so each hashed bundle was
+// revalidated on every view. The hash is the version; it can be cached forever.
+const headersFile = await readOr('dist/_headers', 'utf8')
+check(
+  '_headers caches the hashed bundles as immutable',
+  /^\/_astro\/\*\s*\n\s+Cache-Control:.*max-age=31536000.*immutable/m.test(headersFile),
+  headersFile,
+)
+
 /* ---- the Person node ---- */
 
 /**
