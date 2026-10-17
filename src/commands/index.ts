@@ -1,6 +1,6 @@
 import type { Out } from '../render/ast'
 import { blank, cmds, line } from '../render/ast'
-import { search, type Candidate } from './fuzzy'
+import { osa, search, type Candidate } from './fuzzy'
 import { runnable } from './naming'
 import { cat } from './cat'
 import { clear } from './clear'
@@ -103,7 +103,9 @@ export function run(input: string, data: SiteData): Out[] {
     // Unknown input searches rather than scolding. A shell that only says "not
     // found" makes the visitor guess again; one that offers the three nearest
     // things turns a typo into navigation.
-    const near = search(candidates(data), input, 3).filter((h) => h.score > -60)
+    const near = [...corrections(input), ...search(candidates(data), input, 3).filter((h) => h.score > -60)]
+      .filter((h, i, all) => all.findIndex((o) => o.value === h.value) === i)
+      .slice(0, 3)
 
     return [
       line(`${name}: command not found`, 'fail'),
@@ -116,6 +118,24 @@ export function run(input: string, data: SiteData): Out[] {
   }
   const ctx: Ctx = { args, flags, data }
   return cmd.run(ctx)
+}
+
+/**
+ * The input with its command name corrected, rest kept: `gerp glue` becomes
+ * `grep glue` rather than a bare `grep`. One edit for short names, two from
+ * five letters, so `ls` is not offered for every two-letter word. Hidden
+ * commands are never offered — a typo is not how the egg should be found.
+ */
+function corrections(input: string): Candidate[] {
+  const { name } = parse(input)
+  const typed = name.toLowerCase()
+  const rest = input.trim().slice(name.length).trim()
+  return registry
+    .filter((c) => !c.hidden)
+    .map((c) => ({ c, d: osa(typed, c.name) }))
+    .filter(({ d }) => d > 0 && d <= (typed.length >= 5 ? 2 : 1))
+    .sort((a, b) => a.d - b.d)
+    .map(({ c }) => ({ value: rest ? `${c.name} ${rest}` : runnable(c), label: c.summary }))
 }
 
 /** Renders a command in its canonical, argument-free form for its static page. */
@@ -150,7 +170,7 @@ export function pageFor(input: string, slugs?: string[]): string | null {
   const real = args.filter((a) => !/[<>]/.test(a))
 
   if (cmd.name === 'cat') {
-    const slug = (real[0] ?? '').replace(/^\.?\/?projects\//, '').replace(/\/$/, '')
+    const slug = (real[0] ?? '').replace(/^~\//, '').replace(/^\.?\/?projects\//, '').replace(/\/$/, '').toLowerCase()
     if (!slug) return null
     // Hidden files are reachable only through the shell. Giving one a URL would
     // put it in the sitemap and undo the point of hiding it.

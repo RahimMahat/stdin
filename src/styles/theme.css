@@ -88,7 +88,8 @@ body {
   flex-wrap: wrap;
 }
 .ps1 { color: var(--accent); white-space: nowrap; }
-.typed { color: var(--ink); }
+/* A pasted URL or a 5,000-character line wraps; it never widens the page. */
+.typed { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 
 /* The echoed command is the page's heading — see Shell.astro. That is a
    semantic claim, not a visual one: it has to keep reading as a line of shell
