@@ -186,7 +186,7 @@ is printed by `npm test`; update it here when it moves:
   reason; one that answers every question alike had the reduced-motion run
   claiming to be a phone too
 - counts in hand-written prose are `{tokens}` filled from the collections in
-  `src/data/site.ts` (`{personal}`, `{weeks}`, `{years}`; capitalised for a
+  `src/data/site.ts` (`{personal}`, `{years}`; capitalised for a
   sentence start), and an unknown token fails the build. `now` then names each
   personal project in prose nothing computes, so a check fails until every one
   it counts is named — a computed count over a hand-written list is the same
