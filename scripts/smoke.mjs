@@ -442,6 +442,16 @@ check(
   `${workCount} work, ${data0.projects.length - workCount} personal`,
 )
 
+// `now` counts the personal projects from the collection, then names each one
+// in prose that nothing computes. The count moving on its own would read "four
+// projects" over a list of three, which is the same drift with a newer number.
+const unnamed = data0.projects.filter((p) => p.kind === 'personal' && !data0.now.body.includes(p.slug))
+check(
+  'now names every personal project it counts',
+  unnamed.length === 0,
+  `missing from now/: ${unnamed.map((p) => p.slug).join(', ')}`,
+)
+
 /**
  * And every row gives a reason to open it. Thirteen slugs beside a size, a date
  * and `ok` thirteen times was a list nobody had a reason to read past, when the
