@@ -420,10 +420,11 @@ class Shell {
       rain(body)
     })
 
-    if (href && href !== location.pathname) {
-      history.pushState({ cmd: input, href }, '', href)
-      document.title = `${input} — rahim mahat`
-    }
+    if (href && href !== location.pathname) history.pushState({ cmd: input, href }, '', href)
+    // Named after the URL rather than the input, so `WHOAMI` and `man ls`
+    // title the tab the way their pages do, and a command that keeps the URL
+    // (`theme light` on /theme) cannot leave the tab naming the previous one.
+    if (href) document.title = titleFor(href)
   }
 
   private clear(): void {
@@ -444,6 +445,7 @@ class Shell {
 
     if (block) {
       reveal(block)
+      document.title = titleFor(href)
       return
     }
 
@@ -469,6 +471,13 @@ class Shell {
   private announce(msg: string): void {
     this.els.status.textContent = msg
   }
+}
+
+/** The `<title>` the static page at this path carries. Mirrors Shell.astro. */
+function titleFor(href: string): string {
+  if (href === '/') return 'rahim mahat — stdin'
+  const name = href.startsWith('/projects/') ? `cat projects/${href.slice('/projects/'.length)}` : href.slice(1)
+  return `${name} — rahim mahat`
 }
 
 /** scrollIntoView is absent in some embedded and test environments. */

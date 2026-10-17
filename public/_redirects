@@ -1,0 +1,4 @@
+# A visitor editing /projects/x back to its parent lands on the listing
+# rather than the 404. Pages applies the status as written.
+/projects  /ls  308
+/projects/  /ls  308

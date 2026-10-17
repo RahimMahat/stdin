@@ -205,6 +205,12 @@ await new Promise((r) => window.setTimeout(r, 600))
 const settled = doc.querySelectorAll('#stream .block:last-child .out > *').length
 check('output streams in rather than appearing at once', midway < settled, `${midway} -> ${settled}`)
 check('streamed output arrives complete', settled === T.run('now', data0).length, `${settled} nodes`)
+// The static /now is rendered once and served for up to ninety days, so any
+// age it printed would read 0 for all ninety and disagree with the live one.
+check(
+  'now prints no age that the static page would freeze',
+  !/days? ago/.test((await readFile('dist/now.html', 'utf8')).replace(/<[^>]+>/g, '')),
+)
 reducedMotion = true
 
 /* --- unknown command --- */
@@ -325,11 +331,41 @@ submit(form)
 await settle()
 check('clear empties the session', doc.querySelectorAll('#stream .block').length === 0)
 
+/* --- the tab names what the address bar names --- */
+const runIt = async (cmd) => {
+  type(input, cmd)
+  submit(form)
+  await settle()
+}
+await runIt('WHOAMI')
+check('the title is the page, not the input as typed', doc.title === 'whoami — rahim mahat', doc.title)
+await runIt('man ls')
+check('an alias titles the tab as the page it lands on', doc.title === 'help — rahim mahat', doc.title)
+await runIt('theme light')
+await runIt('theme dark')
+check('a command that keeps the url still retitles the tab', doc.title === 'theme — rahim mahat', doc.title)
+await runIt('theme')
+
+// Back used to move the address bar and nothing else: the title stayed on the
+// command that had been popped, so the tab named a page the URL had left.
+await runIt('ls projects/')
+await runIt('cat projects/' + data0.projects[0].slug)
+const popped = new Promise((r) => window.addEventListener('popstate', r, { once: true }))
+window.history.back()
+await popped
+await settle()
+check('back retitles the tab for the url it lands on', doc.title === 'ls — rahim mahat', `${window.location.pathname}: ${doc.title}`)
+
 /* ---------------------------------------------------------------- */
 /* unknown input suggests rather than scolds                         */
 /* ---------------------------------------------------------------- */
 
-const chipsOf = (nodes) => nodes.filter((n) => n.t === 'cmds').flatMap((n) => n.items.map((i) => i.name))
+// Table cells count too. `help` offered bare `cat` as a clickable row, which
+// answers "cat: needs a file", and a chip-only sweep never looked at it.
+const chipsOf = (nodes) => [
+  ...nodes.filter((n) => n.t === 'cmds').flatMap((n) => n.items.map((i) => i.name)),
+  ...nodes.filter((n) => n.t === 'table').flatMap((n) => n.rows.flat().flatMap((c) => (c.cmd ? [c.cmd] : []))),
+]
 
 const typo = T.run('whoam', data0)
 check('a near miss suggests the real command', chipsOf(typo).includes('whoami'), chipsOf(typo).join(' | '))
@@ -1119,6 +1155,26 @@ const waysOut = ['/whoami', '/ls', '/skills', '/git', '/now', '/contact'].filter
   (href) => !notFound.includes(`href="${href}"`),
 )
 check('the 404 is a way back in, not a dead end', waysOut.length === 0, `missing: ${waysOut.join(', ')}`)
+
+// The site used to say "every command is also a real URL" in three places
+// while /grep and /clear were 404s. What it says now is a list, so check it.
+const helpPage = (await readFile('dist/help.html', 'utf8')).replace(/<[^>]+>/g, '')
+const unpagedSaid = helpPage.match(/\. ([a-z ]+?) depend on what you type/)?.[1].split(' and ') ?? []
+check(
+  'help names exactly the commands that have no page',
+  unpagedSaid.length > 0 && unpagedSaid.every((n) => !builtPages.includes(`${n}.html`)) &&
+    T.registry.filter((c) => !c.page && !c.hidden && c.name !== 'cat').every((c) => unpagedSaid.includes(c.name)),
+  `help says: ${unpagedSaid.join(', ')}`,
+)
+
+// Trimming a project URL back to its parent is the natural guess, and there is
+// no /projects page to land on.
+const redirects = await readFile('dist/_redirects', 'utf8').catch(() => '')
+check(
+  '/projects redirects to the listing rather than the 404',
+  /^\/projects\s+\/ls\s+308$/m.test(redirects) && builtPages.includes('ls.html'),
+  redirects || 'no dist/_redirects',
+)
 
 check('the 404 is kept out of the index', /<meta name="robots" content="noindex"/.test(notFound))
 
