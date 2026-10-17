@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 231 shell checks — the real gate
+npm test               # build + link check + 270 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 231, in
+Correctness lives in build-time checks rather than in review. Currently 270, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -191,6 +191,26 @@ is printed by `npm test`; update it here when it moves:
   personal project in prose nothing computes, so a check fails until every one
   it counts is named — a computed count over a hand-written list is the same
   drift with a newer number
+- the prompt is not a keyboard trap: Tab is held only for a press that changes
+  something and Shift+Tab never is, driven with real key events. A typo is
+  answered by edit distance on the command name with its arguments kept, and a
+  prefix match is the only match
+- a personal project's date prints as `published` — it is the repository's
+  publish date, not when work began — and every tool in the `whoami` headline
+  stack is mentioned by some project or role. Snowflake led it for months
+  backed by nothing
+- project pages print the `latency` field as `outcome`, related projects are
+  the same kind first, and a metric a summary names (`PR-AUC`) is stated with
+  a figure on the page — the leakproof summary claimed a drop the page never
+  showed
+- `/resume` is a document, not a transcript: h2 sections, every role body, no
+  chips or prompts, every project linked to its write-up
+- the tab title follows the URL rather than the raw input, including on Back;
+  `help` names exactly the commands with no page; `/now` prints no age, because
+  the static page would freeze it at build time; `/projects` 308s to `/ls`
+- descriptions are written sentences of 160 characters or fewer, not scraped
+  output; no HTML comments ship, nothing follows `</html>`, fonts are
+  self-hosted, and `/_astro/*` is immutable via `public/_headers`
 - the boot log is checked against the collections it claims to have counted,
   and never reaches a visitor without JavaScript
 
@@ -230,6 +250,6 @@ match their density rather than adding narration.
   refinement, so it fails the *build*, not a test — production stops deploying
   90 days after `updated:` in `src/content/now/current.md` with no code change.
   That is the intended design; the date is the part worth knowing in advance.
-- `document.title` is set when a command pushes a URL, and restored by neither
-  `clear()` nor `popstate` — the tab can name output that is no longer on
-  screen. `src/terminal/shell.ts`.
+- Back/Forward scroll to the block that URL rendered rather than removing what
+  came after it, and `clear()` leaves the URL and title on the last page. The
+  two at least agree with each other now. `src/terminal/shell.ts`.
