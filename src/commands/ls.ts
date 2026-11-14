@@ -99,7 +99,7 @@ export const ls: Command = {
           ]
         : []),
       line(tail, 'dim'),
-      line('grep <term> searches every one of them.', 'dim'),
+      line('grep <term> searches every one of them. sql queries them.', 'dim'),
     ]
   },
 }

@@ -23,6 +23,7 @@ export function makeHelp(all: () => Command[]): Command {
         { text: canonical(c), cmd: c.page ? runnable(c) : c.name === 'cat' ? 'ls projects/' : undefined },
         { text: c.summary, tone: 'dim' },
       ])
+      const bare = commands.filter((c) => c.bareOnly).map((c) => c.name)
       const unpaged = commands.filter((c) => !c.page && c.name !== 'cat').map((c) => c.name)
       return [
         line(`${commands.length} commands. tab completes; anything unrecognised suggests the nearest match.`, 'dim'),
@@ -30,7 +31,7 @@ export function makeHelp(all: () => Command[]): Command {
         table(['command', 'output'], rows),
         blank(),
         line(
-          `each one with a fixed output is also a real page, and reads the same with javascript off; cat has one per project. ${unpaged.join(' and ')} depend on what you type, so they have none.`,
+          `each one with a fixed output is also a real page, and reads the same with javascript off; cat has one per project. ${unpaged.join(' and ')} depend on what you type, so they have none.${bare.length ? ` ${bare.join(' and ')} answers at the prompt; the page lists what can be asked.` : ''}`,
           'dim',
         ),
       ]

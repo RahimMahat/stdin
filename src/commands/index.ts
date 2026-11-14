@@ -12,6 +12,7 @@ import { makeHelp } from './help'
 import { ls } from './ls'
 import { now } from './now'
 import { skills } from './skills'
+import { sql } from './sql'
 import { theme } from './theme'
 import type { Command, Ctx, SiteData } from './types'
 import { whoami } from './whoami'
@@ -24,7 +25,7 @@ export { canonical, runnable } from './naming'
  * routes, the help table, and (in phase 2) autocomplete all read from this list,
  * so there is no second place to keep in sync.
  */
-const base: Command[] = [whoami, ls, cat, grep, skills, git, now, contact, theme, clear, cmatrix]
+const base: Command[] = [whoami, ls, cat, grep, sql, skills, git, now, contact, theme, clear, cmatrix]
 
 const help = makeHelp(() => registry)
 
@@ -116,7 +117,7 @@ export function run(input: string, data: SiteData): Out[] {
       line('`help` lists every command.', 'dim'),
     ]
   }
-  const ctx: Ctx = { args, flags, data }
+  const ctx: Ctx = { args, flags, raw: input.trim().slice(name.length).trim(), data }
   return cmd.run(ctx)
 }
 
@@ -143,6 +144,7 @@ export function runForPage(cmd: Command, data: SiteData): Out[] {
   const ctx: Ctx = {
     args: cmd.pageArgs?.args ?? [],
     flags: cmd.pageArgs?.flags ?? {},
+    raw: '',
     data,
   }
   return cmd.run(ctx)
@@ -179,6 +181,8 @@ export function pageFor(input: string, slugs?: string[]): string | null {
     return `/projects/${slug}`
   }
 
+  if (cmd.bareOnly && input.trim().split(/\s+/).length > 1) return null
+
   return cmd.page ? `/${cmd.name}` : null
 }
 
@@ -192,6 +196,10 @@ export function pageFor(input: string, slugs?: string[]): string | null {
 export function hrefFor(input: string): string {
   const page = pageFor(input)
   if (page) return page
-  // No page renders this input. Send the reader somewhere that explains why.
-  return parse(input).name === 'cat' ? '/ls' : '/help'
+  // No page renders this input. Send the reader somewhere that explains why:
+  // the command's own page when it has one, which for `sql` is the schema.
+  const { name } = parse(input)
+  const cmd = find(name)
+  if (cmd?.page) return `/${cmd.name}`
+  return name === 'cat' ? '/ls' : '/help'
 }

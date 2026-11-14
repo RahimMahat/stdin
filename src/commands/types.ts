@@ -72,6 +72,12 @@ export interface Ctx {
   args: string[]
   /** `--tree` -> { tree: true }, `--since=2023` -> { since: "2023" }. */
   flags: Record<string, string | boolean>
+  /**
+   * Everything after the command name, exactly as typed. `args` is split on
+   * whitespace and reads `-1` as a flag, which is right for a shell command
+   * and wrong for a query with a quoted string in it.
+   */
+  raw: string
   data: SiteData
 }
 
@@ -95,6 +101,11 @@ export interface Command {
    * secret nobody finds.
    */
   hidden?: boolean
+  /**
+   * The page shows the argument-free form and nothing else. With arguments the
+   * output is some other thing, and it gets no URL rather than borrowing this one.
+   */
+  bareOnly?: boolean
   /** Default argv used when rendering the static page, e.g. ["projects/"]. */
   pageArgs?: { args?: string[]; flags?: Record<string, string | boolean> }
   run(ctx: Ctx): Out[]
