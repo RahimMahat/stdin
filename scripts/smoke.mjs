@@ -459,6 +459,25 @@ await popped
 await settle()
 check('back retitles the tab for the url it lands on', doc.title === 'ls — rahim mahat', `${window.location.pathname}: ${doc.title}`)
 
+// A pipe prints something no page shows, so it moves neither the URL nor the
+// title. And `clear` piped into a filter is being asked what it prints, not to
+// wipe the screen out from under the pipe.
+const titleBeforePipe = doc.title
+const pathBeforePipe = window.location.pathname
+await runIt('whoami | grep name')
+check(
+  'a piped command leaves the url and the title alone',
+  doc.title === titleBeforePipe && window.location.pathname === pathBeforePipe,
+  `${window.location.pathname}: ${doc.title}`,
+)
+const blocksBeforePipe = doc.querySelectorAll('#stream .block').length
+await runIt('clear | wc -l')
+check(
+  'clear piped into a filter does not clear the screen',
+  doc.querySelectorAll('#stream .block').length === blocksBeforePipe + 1,
+  `${doc.querySelectorAll('#stream .block').length} blocks, was ${blocksBeforePipe}`,
+)
+
 /* ---------------------------------------------------------------- */
 /* unknown input suggests rather than scolds                         */
 /* ---------------------------------------------------------------- */
@@ -1650,6 +1669,10 @@ diff('grep <a stack term>', T.run(`grep ${data.projects[0].stack[0]}`, data))
 // So does `sql`: a result table carries chips, links and NULLs that no page prints.
 diff('sql <projects>', T.run('sql select slug, repo, failed from projects', data))
 diff('sql <roles>', T.run('sql select * from roles', data))
+// And a pipe, which rebuilds its nodes from rows rather than passing them through.
+diff('ls | grep | head', T.run(`ls | grep ${data.projects[0].slug} | head -3`, data))
+diff('whoami | grep', T.run('whoami | grep a', data))
+diff('git | head', T.run('git log --career | head -2', data))
 check(
   'every command renders identically in both renderers',
   mismatches.length === 0,
@@ -2185,6 +2208,156 @@ check(
     ?.rows.some((r) => r[0].text.startsWith('sql')) &&
     T.suggest('sq', data0).some((s) => s.value === 'sql') &&
     T.runForPage(T.find('ls'), data0).some((n) => n.t === 'line' && n.text.includes('sql')),
+)
+
+/* ---------------------------------------------------------------- */
+/* pipes                                                             */
+/* ---------------------------------------------------------------- */
+
+/**
+ * `first | filter | filter`. What travels is rows, so a filtered listing is
+ * still a listing: the check that matters most is that a slug which has been
+ * through `grep` is still a chip that opens its write-up.
+ *
+ * Dim lines and chips are commentary and stay behind, which is what makes
+ * `ls | wc -l` the number of projects rather than the number of lines printed.
+ */
+const piped = (cmd) => T.run(cmd, data0)
+const pipedRows = (cmd) => piped(cmd).flatMap((n) => (n.t === 'table' ? n.rows : []))
+const pipedText = (cmd) => piped(cmd).map((n) => n.text ?? '').join('|')
+const pipedFail = (cmd) => piped(cmd).find((n) => n.t === 'line' && n.tone === 'fail')?.text ?? ''
+
+check(
+  'ls | wc -l is the number of projects, not of lines printed',
+  pipedText('ls | wc -l') === String(data0.projects.length) && pipedText('ls | wc') === String(data0.projects.length),
+  pipedText('ls | wc -l'),
+)
+
+const pipeSlug = data0.projects[data0.projects.length - 1].slug
+const grepped = pipedRows(`ls | grep ${pipeSlug.toUpperCase()}`)
+check(
+  'a row that has been through grep is still a chip that runs',
+  grepped.length >= 1 &&
+    grepped.some((r) => r[0].text === pipeSlug && r[0].cmd === `cat projects/${pipeSlug}`) &&
+    !T.run(grepped[0][0].cmd, data0).some((n) => n.tone === 'fail'),
+  grepped.map((r) => r[0].text).join(', ') || 'no rows',
+)
+check(
+  'grep -v keeps what does not match',
+  pipedRows(`ls | grep -v ${pipeSlug}`).length === data0.projects.length - grepped.length,
+  `${pipedRows(`ls | grep -v ${pipeSlug}`).length} rows`,
+)
+
+const lsOrder = pipedRows('ls | head -999').map((r) => r[0].text)
+check(
+  'head and tail take the rows they are asked for, in every spelling',
+  JSON.stringify(pipedRows('ls | head -2').map((r) => r[0].text)) === JSON.stringify(lsOrder.slice(0, 2)) &&
+    JSON.stringify(pipedRows('ls | head -n 2').map((r) => r[0].text)) === JSON.stringify(lsOrder.slice(0, 2)) &&
+    JSON.stringify(pipedRows('ls | tail -1').map((r) => r[0].text)) === JSON.stringify(lsOrder.slice(-1)) &&
+    lsOrder.length === data0.projects.length,
+  pipedRows('ls | head -2')
+    .map((r) => r[0].text)
+    .join(', '),
+)
+
+const sortedSlugs = [...lsOrder].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+check(
+  'sort orders the rows and -r reverses them',
+  JSON.stringify(pipedRows('ls | sort').map((r) => r[0].text)) === JSON.stringify(sortedSlugs) &&
+    JSON.stringify(pipedRows('ls | sort -r').map((r) => r[0].text)) === JSON.stringify([...sortedSlugs].reverse()),
+  pipedRows('ls | sort')
+    .map((r) => r[0].text)
+    .join(', '),
+)
+
+check(
+  'three stages chain, and sql pipes like anything else',
+  pipedText('ls | sort | head -3 | wc -l') === '3' &&
+    pipedRows('sql select slug, date from projects | head -1').length === 1 &&
+    pipedText('sql select * from roles | wc -l') === String(data0.roles.length),
+  pipedText('ls | sort | head -3 | wc -l'),
+)
+
+// Every output shape has rows in it somewhere: a record, a log, a tree, prose.
+check(
+  'records, logs, trees and write-ups all go down a pipe',
+  pipedText('git log --career | wc -l') === String(data0.roles.length) &&
+    piped('whoami | grep location').some((n) => n.t === 'kv' && n.pairs.length === 1) &&
+    Number(pipedText('skills --tree | wc -l')) === T.run('sql select * from skills', data0).find((n) => n.t === 'table').rows.length &&
+    Number(pipedText(`cat projects/${pipeSlug} | wc -l`)) > 5,
+  `git ${pipedText('git log --career | wc -l')}, skills ${pipedText('skills --tree | wc -l')}`,
+)
+
+check(
+  'a command that is not a filter is told so, and a non-command is not found',
+  pipedFail('ls | cat').includes('does not read from a pipe') &&
+    pipedFail('ls | nope').includes('command not found') &&
+    piped('ls | cat').some((n) => n.t === 'line' && ['grep', 'head', 'tail', 'sort', 'wc'].every((f) => n.text.includes(f))),
+  `${pipedFail('ls | cat')} | ${pipedFail('ls | nope')}`,
+)
+
+const brokenPipes = ['ls |', '| wc', 'ls | | wc', 'ls | head -x', 'ls | sort -z', 'ls | grep', 'ls | wc -c', 'nope | wc -l']
+const pipeSurvived = brokenPipes.filter((c) => {
+  try {
+    return pipedFail(c) !== ''
+  } catch {
+    return false
+  }
+})
+check(
+  'a malformed pipe is an error message, never an exception',
+  pipeSurvived.length === brokenPipes.length,
+  `unhandled: ${brokenPipes.filter((c) => !pipeSurvived.includes(c)).join(' , ')}`,
+)
+
+// `wc -l` alone is not a typo for anything. It has nothing to read.
+const loneOffers = ['head', 'tail', 'sort', 'wc'].map((f) => ({
+  f,
+  out: T.run(f, data0),
+}))
+check(
+  'a filter typed alone says so and offers a pipe that works',
+  loneOffers.every(
+    ({ out }) =>
+      out.some((n) => n.tone === 'fail' && n.text.includes('reads from a pipe')) &&
+      out
+        .find((n) => n.t === 'cmds')
+        ?.items.every((i) => i.name.includes('|') && !T.run(i.name, data0).some((n) => n.tone === 'fail')),
+  ),
+  loneOffers
+    .filter(({ out }) => !out.some((n) => n.t === 'cmds'))
+    .map(({ f }) => f)
+    .join(', '),
+)
+
+check(
+  'a | inside quotes is a character, not a pipe',
+  !pipedFail('grep "a|b"').includes('pipe') && pipedFail('grep "a|b"').includes('a|b'),
+  pipedFail('grep "a|b"'),
+)
+
+check(
+  'grep that matches nothing says so instead of printing an empty block',
+  piped('ls | grep zzzznope').length === 1 && piped('ls | grep zzzznope')[0].tone === 'dim',
+  JSON.stringify(piped('ls | grep zzzznope')),
+)
+
+// `ls | grep aws` is not what /ls shows.
+check(
+  'a piped command has no URL',
+  T.pageFor('ls | wc -l', []) === null && T.pageFor('whoami | grep name', []) === null && T.pageFor('ls', []) === '/ls',
+  String(T.pageFor('ls | wc -l', [])),
+)
+
+const helpLines = T.run('help', data0)
+  .filter((n) => n.t === 'line')
+  .map((n) => n.text)
+  .join(' ')
+const helpPipes = [...helpLines.matchAll(/`([^`]*\|[^`]*)`/g)].map((m) => m[1])
+check(
+  'help says commands pipe, and every pipe it shows runs',
+  helpPipes.length >= 1 && helpPipes.every((c) => !T.run(c, data0).some((n) => n.tone === 'fail')),
+  helpPipes.join(' , ') || 'no piped example in help',
 )
 
 /* ---------------------------------------------------------------- */

@@ -1,5 +1,6 @@
 import { blank, line, table, type Cell, type Out } from '../render/ast'
 import { canonical, runnable } from './naming'
+import { filterNames } from './pipe'
 import type { Command, Ctx } from './types'
 
 /**
@@ -32,6 +33,10 @@ export function makeHelp(all: () => Command[]): Command {
         blank(),
         line(
           `each one with a fixed output is also a real page, and reads the same with javascript off; cat has one per project. ${unpaged.join(' and ')} depend on what you type, so they have none.${bare.length ? ` ${bare.join(' and ')} answers at the prompt; the page lists what can be asked.` : ''}`,
+          'dim',
+        ),
+        line(
+          `commands pipe: \`ls | head -3\`, \`sql select * from skills | wc -l\`. ${filterNames.join(', ')} read from one; there, grep searches what was printed rather than the write-ups.`,
           'dim',
         ),
       ]

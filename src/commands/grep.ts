@@ -27,7 +27,7 @@ const ENTITIES: Record<string, string> = {
 }
 
 /** The write-ups arrive as HTML. Searching the markup would match on tag names. */
-const text = (html: string): string =>
+export const text = (html: string): string =>
   html.replace(/<[^>]+>/g, ' ').replace(/&(amp|lt|gt|quot|#39);/g, (e) => ENTITIES[e] ?? e)
 
 const haystack = (p: Project): string =>

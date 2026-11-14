@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 284 shell checks — the real gate
+npm test               # build + link check + 300 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 284, in
+Correctness lives in build-time checks rather than in review. Currently 300, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -138,6 +138,13 @@ is printed by `npm test`; update it here when it moves:
   test of the part most likely to be wrong. `/sql` is the schema; a result has
   no URL (`bareOnly`), for the reason `grep` has no page. Every query it
   suggests is run first, so none comes back empty
+- pipes carry rows, not text (`src/commands/pipe.ts`): output is taken apart,
+  filtered by `grep`, `head`, `tail`, `sort` or `wc`, and rebuilt into the node
+  types it came from, so a slug that has been through `grep` is still a chip.
+  Dim lines and chips are commentary and do not travel, which is what makes
+  `ls | wc -l` the number of projects. A piped command has no URL and moves no
+  title, `clear | wc` does not clear, a quoted `|` is a character, and every
+  pipe `help` shows is run
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin

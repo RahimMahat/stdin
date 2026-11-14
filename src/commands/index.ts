@@ -2,6 +2,7 @@ import type { Out } from '../render/ast'
 import { blank, cmds, line } from '../render/ast'
 import { osa, search, type Candidate } from './fuzzy'
 import { runnable } from './naming'
+import { alone, isFilter, pipeline, splitPipes } from './pipe'
 import { cat } from './cat'
 import { clear } from './clear'
 import { cmatrix } from './cmatrix'
@@ -95,12 +96,29 @@ export function parse(input: string): Parsed {
   return { name, args, flags }
 }
 
-/** Runs an input line against the registry. Unknown commands fail politely. */
+/**
+ * Runs an input line. With a `|` in it, the first stage is a command and the
+ * rest are filters over what it printed.
+ */
 export function run(input: string, data: SiteData): Out[] {
+  const [first, ...rest] = splitPipes(input)
+  if (rest.length === 0) return runOne(input, data)
+  if (!first) return [line('nothing on one side of the pipe', 'fail')]
+  // An unknown command has only its error to print, and filtering that would
+  // hide the one thing the visitor needs to read.
+  if (!find(parse(first).name)) return runOne(first, data)
+  return pipeline(runOne(first, data), rest, (n) => find(n) !== undefined)
+}
+
+/** Runs one command against the registry. Unknown commands fail politely. */
+function runOne(input: string, data: SiteData): Out[] {
   const { name, args, flags } = parse(input)
   if (!name) return []
   const cmd = find(name)
   if (!cmd) {
+    // `wc -l` on its own is not a typo for anything; it has nothing to read.
+    if (isFilter(name)) return alone(name)
+
     // Unknown input searches rather than scolding. A shell that only says "not
     // found" makes the visitor guess again; one that offers the three nearest
     // things turns a typo into navigation.
@@ -163,6 +181,9 @@ export function runForPage(cmd: Command, data: SiteData): Out[] {
  * has no site data in scope; pass it wherever a wrong guess would matter.
  */
 export function pageFor(input: string, slugs?: string[]): string | null {
+  // `ls | grep aws` is not what /ls shows.
+  if (splitPipes(input).length > 1) return null
+
   const { name, args } = parse(input)
   const cmd = find(name)
   if (!cmd) return null
