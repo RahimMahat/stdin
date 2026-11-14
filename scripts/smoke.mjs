@@ -1647,6 +1647,9 @@ for (const cmd of T.registry) diff(cmd.name, T.runForPage(cmd, data))
 for (const p of data.projects) diff(`cat projects/${p.slug}`, T.run(`cat projects/${p.slug}`, data))
 // `grep` with a term is the one other output shape the argument-free loop never sees.
 diff('grep <a stack term>', T.run(`grep ${data.projects[0].stack[0]}`, data))
+// So does `sql`: a result table carries chips, links and NULLs that no page prints.
+diff('sql <projects>', T.run('sql select slug, repo, failed from projects', data))
+diff('sql <roles>', T.run('sql select * from roles', data))
 check(
   'every command renders identically in both renderers',
   mismatches.length === 0,
@@ -2012,6 +2015,176 @@ check(
 check(
   'ls tells a reader that grep exists',
   T.runForPage(T.find('ls'), data0).some((n) => n.t === 'line' && n.text.includes('grep')),
+)
+
+/* ---------------------------------------------------------------- */
+/* sql                                                               */
+/* ---------------------------------------------------------------- */
+
+/**
+ * A SELECT over the content. The checks compare each answer with the same
+ * question asked of the data directly, so they hold whatever `src/content/`
+ * contains — a count typed in here would be a test of the content.
+ *
+ * The parser is hand-written, which is the part most likely to be wrong, so
+ * the last group feeds it things nobody should type and asks only that it
+ * answers with an error rather than an exception.
+ */
+const sqlOut = (q, d = data0) => T.run(`sql ${q}`, d)
+const sqlRows = (q, d = data0) => sqlOut(q, d).find((n) => n.t === 'table')?.rows ?? []
+const sqlCol = (q, i = 0) => sqlRows(q).map((r) => r[i].text)
+const sqlFails = (q) => sqlOut(q).some((n) => n.t === 'line' && n.tone === 'fail')
+
+check(
+  'select * returns every project, and every column',
+  sqlRows('select * from projects').length === data0.projects.length &&
+    sqlOut('select * from projects').find((n) => n.t === 'table')?.cols.includes('outcome'),
+  `${sqlRows('select * from projects').length} rows`,
+)
+
+const personalSlugs = data0.projects.filter((p) => p.kind === 'personal').map((p) => p.slug)
+check(
+  'where filters to exactly the rows the data says',
+  JSON.stringify(sqlCol("select slug from projects where kind = 'personal'")) === JSON.stringify(personalSlugs),
+  sqlCol("select slug from projects where kind = 'personal'").join(', '),
+)
+
+const likeTerm = stackTerm.toUpperCase()
+const withStack = data0.projects.filter((p) => p.stack.join(', ').toLowerCase().includes(stackTerm.toLowerCase()))
+check(
+  'like ignores case and = does not',
+  sqlRows(`select slug from projects where stack like '%${likeTerm}%'`).length === withStack.length &&
+    sqlOut("select slug from projects where kind = 'PERSONAL'").some((n) => n.t === 'line' && n.text === '0 rows'),
+  `${likeTerm}: ${sqlRows(`select slug from projects where stack like '%${likeTerm}%'`).length} of ${withStack.length}`,
+)
+
+const newestTwo = [...data0.projects]
+  .map((p) => p.started.toISOString().slice(0, 10))
+  .sort()
+  .reverse()
+  .slice(0, 2)
+check(
+  'order by and limit do what they say',
+  JSON.stringify(sqlCol('select date from projects order by date desc limit 2')) === JSON.stringify(newestTwo),
+  sqlCol('select date from projects order by date desc limit 2').join(', '),
+)
+
+check(
+  'count(*) is the number of rows, with and without a where',
+  sqlCol('select count(*) from projects')[0] === String(data0.projects.length) &&
+    sqlCol("select count(*) from projects where kind = 'personal'")[0] === String(personalSlugs.length),
+  sqlCol('select count(*) from projects')[0],
+)
+
+check(
+  'and, or and brackets combine the way they read',
+  sqlRows("select slug from projects where kind = 'personal' or kind = 'work'").length === data0.projects.length &&
+    sqlOut("select slug from projects where kind = 'personal' and kind = 'work'").some((n) => n.text === '0 rows') &&
+    sqlRows("select slug from projects where (kind = 'work' or kind = 'personal') and size > 0").length ===
+      data0.projects.length,
+)
+
+const currentRoles = data0.roles.filter((r) => r.end === null).length
+check(
+  'roles and skills are tables too, and is null finds the current role',
+  sqlRows('select * from roles').length === data0.roles.length &&
+    sqlRows('select title from roles where end is null').length === currentRoles &&
+    sqlRows('select * from roles where end is not null').length === data0.roles.length - currentRoles &&
+    sqlRows('select * from skills').length > 0,
+  `${sqlRows('select * from roles').length} roles, ${sqlRows('select * from skills').length} skills`,
+)
+
+const noTable = sqlOut('select * from nope').find((n) => n.tone === 'fail')?.text ?? ''
+const noColumn = sqlOut('select nope from roles').find((n) => n.tone === 'fail')?.text ?? ''
+check(
+  'an unknown table or column is answered with the ones that exist',
+  ['projects', 'roles', 'skills'].every((t) => noTable.includes(t)) &&
+    noColumn.includes('org') &&
+    noColumn.includes('message'),
+  `${noTable} | ${noColumn}`,
+)
+
+// A slug in a result is a way into the write-up, as it is in `ls`.
+const slugCells = sqlRows('select slug, hook from projects').map((r) => r[0])
+check(
+  'a slug in a result runs the write-up it names',
+  slugCells.length === data0.projects.length &&
+    slugCells.every((c) => c.cmd && !T.run(c.cmd, data0).some((n) => n.t === 'line' && n.tone === 'fail')),
+  slugCells
+    .filter((c) => !c.cmd)
+    .map((c) => c.text)
+    .join(', '),
+)
+
+const garbage = [
+  'select',
+  'select from',
+  'select * from',
+  'select * projects',
+  "select * from projects where kind = 'personal",
+  'select * from projects where',
+  'select * from projects where kind',
+  'select * from projects where kind = ',
+  'select * from projects limit -1',
+  'select * from projects limit lots',
+  'select * from projects order by',
+  'select * from projects; drop table projects',
+  'select slug,, title from projects',
+  'select count(slug) from projects',
+  'select * from projects where (kind = 1',
+  'select * from projects where kind not 3',
+  'update projects set kind = 1',
+  '<script>alert(1)</script>',
+  '%%%',
+  `select * from projects where ${"kind = 'x' or ".repeat(900)}kind = 'y' and`,
+]
+const survived = garbage.filter((q) => {
+  try {
+    return sqlFails(q)
+  } catch {
+    return false
+  }
+})
+check(
+  'a query the grammar does not cover is an error message, never an exception',
+  survived.length === garbage.length,
+  `unhandled: ${garbage
+    .filter((q) => !survived.includes(q))
+    .map((q) => q.slice(0, 40))
+    .join(' | ')}`,
+)
+
+const sqlOffered = T.run('sql', data0).find((n) => n.t === 'cmds')?.items ?? []
+const emptySql = sqlOffered.filter((i) => T.run(i.name, data0).every((n) => n.t !== 'table'))
+check(
+  'every query sql suggests returns rows',
+  sqlOffered.length >= 3 && emptySql.length === 0,
+  emptySql.map((i) => i.name).join(' | ') || `${sqlOffered.length} examples`,
+)
+
+const describedTables = T.run('sql show tables', data0).find((n) => n.t === 'table')?.rows.map((r) => r[0]) ?? []
+check(
+  'show tables lists three, and each one can be described',
+  describedTables.length === 3 && describedTables.every((c) => T.run(c.cmd, data0).some((n) => n.t === 'table')),
+  describedTables.map((c) => c.text).join(', '),
+)
+
+// The page is the schema. A result depends on the query, and a URL names one thing.
+check(
+  'sql has a page for its schema and no URL for a result',
+  builtPages.includes('sql.html') &&
+    sitemapXml.includes('/sql<') &&
+    T.pageFor('sql', []) === '/sql' &&
+    T.pageFor('sql select * from roles', []) === null,
+  `pageFor: ${T.pageFor('sql select * from roles', [])}`,
+)
+check(
+  'help lists sql, the prompt completes it and ls mentions it',
+  T.run('help', data0)
+    .find((n) => n.t === 'table')
+    ?.rows.some((r) => r[0].text.startsWith('sql')) &&
+    T.suggest('sq', data0).some((s) => s.value === 'sql') &&
+    T.runForPage(T.find('ls'), data0).some((n) => n.t === 'line' && n.text.includes('sql')),
 )
 
 /* ---------------------------------------------------------------- */

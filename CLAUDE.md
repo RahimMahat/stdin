@@ -46,7 +46,7 @@ the PR to `main` triggers the production deploy.
 
 ```bash
 npm run dev            # astro dev on :4321
-npm test               # build + link check + 270 shell checks — the real gate
+npm test               # build + link check + 284 shell checks — the real gate
 npm run build          # astro build + check-links
 npm run check          # astro check (types)
 npm run check:content  # fails on TODO markers; deliberately NOT part of build
@@ -112,7 +112,7 @@ real; that check is manual.
 
 ## Guards
 
-Correctness lives in build-time checks rather than in review. Currently 270, in
+Correctness lives in build-time checks rather than in review. Currently 284, in
 `scripts/smoke.mjs` (plus `check-links.mjs` and `check-content.mjs`). The count
 is printed by `npm test`; update it here when it moves:
 
@@ -131,6 +131,13 @@ is printed by `npm test`; update it here when it moves:
   stored as, counts what it lists, and never suggests a search that comes back
   empty — the examples are computed from the stacks. It has no page: its output
   depends on what was typed, and a URL has to name one thing
+- `sql` answers a SELECT over three tables (`projects`, `roles`, `skills`) with
+  a hand-written parser, checked against the same question asked of the data
+  directly rather than against typed-in counts. Anything outside the grammar is
+  an error line and never an exception — the list of garbage it is fed is the
+  test of the part most likely to be wrong. `/sql` is the schema; a result has
+  no URL (`bareOnly`), for the reason `grep` has no page. Every query it
+  suggests is run first, so none comes back empty
 - no broken internal links across all routes
 - no TODO markers in content
 - canonicals: present, right origin, no `.html`, root is the bare origin
