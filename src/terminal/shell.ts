@@ -1,4 +1,5 @@
 import { pageFor, parse, run } from '../commands'
+import { splitPipes } from '../commands/pipe'
 import type { SiteData } from '../commands/types'
 import { line, type Out } from '../render/ast'
 import { renderLive } from '../render/live'
@@ -378,7 +379,10 @@ class Shell {
 
     this.remember(input)
 
-    const { name, args } = parse(input)
+    // `clear` and `theme` act on the screen rather than print. Piped into a
+    // filter they are being asked for their output, so they only print.
+    const piped = splitPipes(input).length > 1
+    const { name, args } = piped ? { name: '', args: [] } : parse(input)
 
     if (name === 'clear') {
       this.clear()
